@@ -1,0 +1,206 @@
+#pragma once
+
+#include "PauseMenuItem.h"
+
+enum class EMenuType;
+
+public ref class PauseMenu
+{
+public:
+	PauseMenu(EMenuType menuType);
+	~PauseMenu();
+	PauseMenuItem ^ AddItem(System::String ^ text, int type);
+	PauseMenuItem ^ AddItem(System::String ^ text, EMenuType baseType, int type);
+	PauseMenuItem ^ AddItem(System::String ^ text, EMenuType baseType, int type, int settingIndex);
+
+	property int MenuID {
+		int get() {
+			return cmenu->menuId;
+		}
+	}
+
+	property int ItemCount {
+		int get() {
+			return cmenu->itemCount;
+		}
+	}
+
+	property System::IntPtr MemoryAddress {
+		System::IntPtr get() {
+			return System::IntPtr(cmenu);
+		}
+	}
+
+	property PauseMenuItem ^ default[int]
+	{
+		PauseMenuItem ^ get(int index) {
+		if (index < 0 || index > cmenu->itemCount - 1)
+			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
+		return gcnew PauseMenuItem(&cmenu->items[index]);
+	}
+
+	void set(int index, PauseMenuItem ^ value) {
+		if (index < 0 || index > cmenu->itemCount - 1)
+			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
+		cmenu->items[index] = *value->m_item;
+	}
+	}
+	
+private:
+	!PauseMenu();
+	CPauseMenuInstance * cmenu;
+	int m_origMenuItemCount;
+};
+
+public enum class EMenuType : int
+{
+	MAP = 0,
+	INFO = 1,
+	FRIENDS = 2,
+	GALLERY = 3,
+	SOCIALCLUB = 4,
+	GAME = 5,
+	SETTINGS = 6,
+	PLAYERS = 7,
+	WEAPONS = 8,
+	MEDALS = 9,
+	STATS = 10,
+	AVAILABLE = 11,
+	VAGOS = 12,
+	COPS = 13,
+	LOST = 14,
+	HOME_MISSION = 15,
+	CORONA_SETTINGS = 16,
+	CORONA_INVITE = 17,
+	STORE = 18,
+	HOME_HELP = 19,
+	HOME_BRIEF = 20,
+	HOME_FEED = 21,
+	SETTINGS_AUDIO = 22,
+	SETTINGS_DISPLAY = 23,
+	SETTINGS_CONTROLS = 24,
+	NEW_GAME = 25,
+	LOAD_GAME = 26,
+	SAVE_GAME = 27,
+	HEADER = 28,
+	HEADER_SAVE_GAME = 29,
+	HOME = 30,
+	CREWS = 31,
+	SETTINGS_SAVEGAME = 32,
+	GALLERY_ITEM = 33,
+	FREEMODE = 34,
+	MP_CHAR_1 = 35,
+	MP_CHAR_2 = 36,
+	MP_CHAR_3 = 37,
+	MP_CHAR_4 = 38,
+	MP_CHAR_5 = 39,
+	HEADER_MULTIPLAYER = 40,
+	HEADER_MY_MP = 41,
+	MISSION_CREATOR = 42,
+	GAME_MP = 43,
+	LEAVE_GAME = 44,
+	HEADER_PRE_LOBBY = 45,
+	HEADER_LOBBY = 46,
+	PARTY = 47,
+	LOBBY = 48,
+	PLACEHOLDER = 49,
+	STATS_CATEGORY = 50,
+	SETTINGS_LIST = 51,
+	SAVE_GAME_LIST = 52,
+	MAP_LEGEND = 53,
+	CREWS_CATEGORY = 54,
+	CREWS_FILTER = 55,
+	CREWS_CARD = 56,
+	SPECTATOR = 57,
+	STATS_LISTITEM = 58,
+	CREW_MINE = 59,
+	CREW_ROCKSTAR = 60,
+	CREW_FRIENDS = 61,
+	CREW_INVITES = 62,
+	CREW_LIST = 63,
+	MISSION_CREATOR_CATEGORY = 64,
+	MISSION_CREATOR_LISTITEM = 65,
+	MISSION_CREATOR_STAT = 66,
+	FRIENDS_LIST = 67,
+	FRIENDS_OPTIONS = 68,
+	HEADER_MP_CHARACTER_SELECT = 69,
+	HEADER_MP_CHARACTER_CREATION = 70,
+	CREATION_HERITAGE = 71,
+	CREATION_LIFESTYLE = 72,
+	CREATION_YOU = 73,
+	PARTY_LIST = 74,
+	REPLAY_MISSION = 75,
+	REPLAY_MISSION_LIST = 76,
+	REPLAY_MISSION_ACTIVITY = 77,
+	CREW = 78,
+	CREATION_HERITAGE_LIST = 79,
+	CREATION_LIFESTYLE_LIST = 80,
+	PLAYERS_LIST = 81,
+	PLAYERS_OPTIONS = 82,
+	PLAYERS_OPTIONS_LIST = 83,
+	PARTY_OPTIONS = 84,
+	PARTY_OPTIONS_LIST = 85,
+	CREW_OPTIONS = 86,
+	CREW_OPTIONS_LIST = 87,
+	FRIENDS_OPTIONS_LIST = 88,
+	FRIENDS_MP = 89,
+	TEAM_SELECT = 90,
+	HOME_DIALOG = 91,
+	HEADER_EMPTY = 92,
+	SETTINGS_FEED = 93,
+	GALLERY_OPTIONS = 94,
+	GALLERY_OPTIONS_LIST = 95,
+	BRIGHTNESS_CALIBRATION = 96,
+	HEADER_TEXT_SELECTION = 97,
+	LOBBY_LIST = 98,
+	LOBBY_LIST_ITEM = 99,
+	HEADER_CORONA = 100,
+	HEADER_CORONA_LOBBY = 101,
+	HEADER_CORONA_JOINED_PLAYERS = 102,
+	HEADER_CORONA_INVITE_PLAYERS = 103,
+	HEADER_CORONA_INVITE_FRIENDS = 104,
+	HEADER_CORONA_INVITE_CREWS = 105,
+	CORONA_JOINED_PLAYERS = 106,
+	CORONA_INVITE_PLAYERS = 107,
+	CORONA_INVITE_FRIENDS = 108,
+	CORONA_INVITE_CREWS = 109,
+	SETTINGS_FACEBOOK = 110,
+	HEADER_JOINING_SCREEN = 111,
+	CORONA_SETTINGS_LIST = 112,
+	CORONA_DETAILS_LIST = 113,
+	CORONA_INVITE_LIST = 114,
+	CORONA_JOINED_LIST = 115,
+	HEADER_CORONA_INVITE_MATCHED_PLAYERS = 116,
+	HEADER_CORONA_INVITE_LAST_JOB_PLAYERS = 117,
+	CORONA_INVITE_MATCHED_PLAYERS = 118,
+	CORONA_INVITE_LAST_JOB_PLAYERS = 119,
+	CREW_LEADERBOARDS = 120,
+	HOME_OPEN_JOBS = 121,
+	CREW_REQUEST = 122,
+	HEADER_RACE = 123,
+	RACE_INFO = 124,
+	RACE_INFOLIST = 125,
+	RACE_LOBBYLIST = 126,
+	HEADER_BETTING = 127,
+	BETTING = 128,
+	BETTING_INFOLIST = 129,
+	BETTING_LOBBYLIST = 130,
+	INCEPT_TRIGGER = 131,
+	SETTINGS_SIXAXIS = 132,
+	REPLAY_RANDOM = 133,
+	CUTSCENE_EMPTY = 134,
+	HOME_NEWSWIRE = 135,
+	SETTINGS_CAMERA = 136,
+	SETTINGS_VIDEO = 137,
+	SETTINGS_GRAPHICS = 138,
+	SETTINGS_VOICE_CHAT = 139,
+	SETTINGS_MISC_CONTROLS = 140,
+	HELP = 141,
+	MOVIE_EDITOR = 142,
+	EXIT_TO_WINDOWS = 143,
+	HEADER_LANDING_PAGE = 144,
+	SHOW_ACCOUNT_PICKER = 145,
+	SETTINGS_REPLAY = 146,
+	REPLAY_EDITOR = 147,
+	MENU_UNIQUE_ID_SETTINGS_FPS = 148
+};
