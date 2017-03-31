@@ -3,7 +3,7 @@
 namespace rage
 {
 	template<typename T>
-	class pgCollection
+	struct pgCollection
 	{
 	public:
 		T*			m_data;
@@ -33,22 +33,6 @@ namespace rage
 	};
 }
 
-enum eDynamicMenuAction
-{
-	Slider = 0,
-	Toggle = 1,
-	AimMode = 3,
-	GamepadLayout = 4,
-	LowMedHi = 5,
-	AudioOutput = 8,
-	FadeRadio = 10,
-	SelfRadioMode = 11,
-	OffOnBlips = 13,
-	SimpleComplex = 14,
-	Language = 15,
-	LowHi = 16
-};
-
 struct CPauseMenuItem
 {
 	int menuIndex; // 0x0-0x4
@@ -63,6 +47,14 @@ struct CPauseMenuItem
 	char stateFlags; //0x1B-0x1C // 1 = disabled
 	char pad1[0x4];
 
+	CPauseMenuItem() {
+		memset(this, 0x0, sizeof(CPauseMenuItem));
+		menuIndex = 0;
+		textHash = -1;
+		settingId = 0;
+		type = 0;
+		stateFlags = 0;
+	}
 }; //sizeof=0x20
 
 struct CPauseMenuInstance
@@ -77,5 +69,16 @@ struct CPauseMenuInstance
 	const char * szMenuName; //0x30-0x38
 	char pad2[0x8]; //0x38-0x40
 	int menuId; //0x40-0x44
-	char pad3[0xC];
+	int unk1; //0x44-0x48
+	short unkFlag;
+	short unkShort1;
+	char pad[0x4];
+
+	CPauseMenuInstance() {
+		memset(this, 0x0, sizeof(CPauseMenuInstance));
+		menuId = 0;
+		unk1 = 2;
+		unkFlag = 128;
+		unkShort1 = 50;
+	}
 }; //sizeof=0x50

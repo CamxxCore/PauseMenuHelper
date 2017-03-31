@@ -1,5 +1,7 @@
 #pragma once
 
+#include "NativeStructs.h"
+
 class ThreadLocal sealed
 {
 public:

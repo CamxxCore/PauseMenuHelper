@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ThreadLocal.h"
+
 namespace rage
 {
 	class sysMemAllocator
@@ -13,7 +15,7 @@ namespace rage
 		virtual void free(void* pointer) = 0;
 	};
 
-	inline sysMemAllocator* GetAllocator()
+	inline sysMemAllocator * GetAllocator()
 	{
 		auto hThread = ThreadLocal::GetDefaultThread();
 
@@ -23,7 +25,7 @@ namespace rage
 
 			if (tls)
 			{
-				sysMemAllocator *allocator = *(sysMemAllocator**)(tls + 200U);
+				sysMemAllocator * allocator = *(sysMemAllocator**)(tls + 200u);
 
 				return allocator;
 			}

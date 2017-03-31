@@ -16,9 +16,15 @@ typedef void(*SetPauseMenuPreference_t)(long long settingIndex, int value, unsig
 
 typedef bool(*SetMenuSlot_t)(int columnId, int slotIndex, int menuState, int settingIndex, int unk, int value, const char * text, bool bPopScaleform, bool bIsSlotUpdate);
 
-typedef void(__stdcall * CMenuItemEventCallback)(int oldValue, int value);
+typedef void(*CallFunctionOnMovie)(void * sfMovie, const char * functionName, void * arg, void * arg1, void * arg2, void * arg3);
+
+typedef void(__stdcall * CMenuPreferenceCallback)(CPauseMenuItem * item, int oldValue, int newValue);
 
 CPauseMenuInstance * lookupMenuForIndex(int menuIndex);
+
+int getFreeMenuIndex();
+
+CPauseMenuInstance *  addMenuInstance();
 
 void setMenuPreference(int settingIndex, int value);
 
@@ -30,7 +36,7 @@ unsigned int setGxtEntry(const char * key, const char * text);
 
 const char * getGxtEntry(unsigned int key);
 
-void registerNativeMenuCallback(CPauseMenuItem * item, CMenuItemEventCallback callback);
+void registerMenuPrefCallback(CPauseMenuItem * item, CMenuPreferenceCallback callback);
 
 void initializeGame();
 

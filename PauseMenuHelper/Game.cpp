@@ -1,4 +1,3 @@
-
 #include "Game.h"
 #include <mutex>
 #include <map>
@@ -9,6 +8,8 @@ std::map<unsigned int, std::string> g_textEntries;
 
 static std::mutex g_textMutex;
 
+int g_origMenuCount;
+
 CallHook<GetGlobalTextEntry_t> * g_getGxtEntryFn;
 
 CallHook<SetMenuSlot_t> * g_createSliderItemFn;
@@ -17,17 +18,34 @@ CallHook<SetMenuSlot_t> * g_createToggleItemFn;
 
 CallHook<SetPauseMenuPreference_t> * g_setPauseMenuPreferenceFn;
 
-rage::pgCollection<CPauseMenuInstance> activeMenuArray;
+CallHook<CallFunctionOnMovie> * g_callInteractionResponseFn;
+
+rage::pgCollection<CPauseMenuInstance> * g_activeMenuArray;
 
 uintptr_t g_globalTextManager = 0;
 
 struct CustomMenuPref
 {
-	CMenuItemEventCallback m_callback;
+	CPauseMenuItem * m_item;
+	CMenuPreferenceCallback m_callback;
 	int m_value;
 };
 
 std::map<int, CustomMenuPref> g_customPrefs;
+
+void callFunctionOnMovie_Stub(void * sfMovie, const char * functionName, void * arg, void * arg1, void * arg2, void * arg3)
+{
+	int menuState = (int)(*reinterpret_cast<double*>(arg)) - 1000;
+	// we need to explicity override the menu state here so the game loads
+	// a valid layout for custom sub menus.
+	// This is necessary or the game won't set any layout at all.
+	if (menuState > 148)
+	{
+		*reinterpret_cast<double*>(arg) = 1136.0;
+	}
+
+	return g_callInteractionResponseFn->fn(sfMovie, functionName, arg, arg1, arg2, arg3);
+}
 
 const char * getGxtEntry_Stub(void * gtxArray, unsigned int hashName)
 {
@@ -40,7 +58,7 @@ const char * getGxtEntry_Stub(void * gtxArray, unsigned int hashName)
 		return it->second.c_str();
 	}
 
-	return g_getGxtEntryFn->function(gtxArray, hashName);
+	return g_getGxtEntryFn->fn(gtxArray, hashName);
 }
 
 bool SetMenuSlot_Stub(int columnId, int slotIndex, int menuState, int settingIndex, int unk, int value, const char * text, bool bPopScaleform, bool bSlotUpdate)
@@ -55,7 +73,7 @@ bool SetMenuSlot_Stub(int columnId, int slotIndex, int menuState, int settingInd
 		}
 	}
 
-	return g_createToggleItemFn->function(columnId, slotIndex, menuState, settingIndex, unk, value, text, bPopScaleform, bSlotUpdate);
+	return g_createToggleItemFn->fn(columnId, slotIndex, menuState, settingIndex, unk, value, text, bPopScaleform, bSlotUpdate);
 }
 
 void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int unk)
@@ -72,14 +90,12 @@ void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int
 
 			if (it->second.m_callback)
 			{
-				OutputDebugStringA("Firing native event from SetPauseMenuPreference_Stub");
-
-				it->second.m_callback(oldValue, value);		
+				it->second.m_callback(it->second.m_item, oldValue, value);
 			}
 		}
 	}
 
-	else return g_setPauseMenuPreferenceFn->function(settingIndex, value, unk);
+	return g_setPauseMenuPreferenceFn->fn(settingIndex, value, unk);
 }
 
 int getMenuPreference(int settingIndex)
@@ -132,7 +148,7 @@ unsigned int setGxtEntry(const char * key, const char * text)
 
 CPauseMenuInstance * lookupMenuForIndex(int menuIndex)
 {
-	for (auto it = activeMenuArray.begin(); it != activeMenuArray.end(); it++)
+	for (auto it = g_activeMenuArray->begin(); it != g_activeMenuArray->end(); it++)
 	{
 		if (it && it->menuId == menuIndex)
 			return it;
@@ -141,7 +157,58 @@ CPauseMenuInstance * lookupMenuForIndex(int menuIndex)
 	return NULL;
 }
 
-void registerNativeMenuCallback(CPauseMenuItem * item, CMenuItemEventCallback callback)
+int getFreeMenuIndex()
+{
+	int menuId = 0;
+
+	for (auto it = g_activeMenuArray->begin(); it != g_activeMenuArray->end(); it++)
+	{
+		if (it && it->menuId > menuId)
+			menuId = it->menuId;
+	}
+
+	menuId++;
+
+	return menuId;
+}
+
+CPauseMenuInstance * addMenuInstance()
+{
+	CPauseMenuInstance menu;
+
+	menu.menuId = getFreeMenuIndex();
+
+	int const newItemCount = g_activeMenuArray->m_count + 1;
+
+	int const newSize = newItemCount * g_activeMenuArray->m_size;
+
+	CPauseMenuInstance * newMenuArray = (CPauseMenuInstance*)malloc(newSize);
+
+	CPauseMenuInstance * pOriginalItems = g_activeMenuArray->m_data;
+
+	memset(newMenuArray, 0x0, newSize);
+
+	memcpy_s(
+		newMenuArray, 
+		newSize, 
+		g_activeMenuArray->m_data, 
+		g_activeMenuArray->m_count * sizeof(CPauseMenuInstance));
+
+	newMenuArray[newItemCount - 1] = menu;
+
+	g_activeMenuArray->m_data = newMenuArray;
+
+	if (g_activeMenuArray->m_count > g_origMenuCount)
+		delete pOriginalItems;
+
+	g_activeMenuArray->m_count = newItemCount;
+
+	g_activeMenuArray->m_size = newItemCount;
+
+	return &newMenuArray[newItemCount - 1];
+}
+
+void registerMenuPrefCallback(CPauseMenuItem * item, CMenuPreferenceCallback callback)
 {
 	int preferenceIdx = (int)item->settingId;
 
@@ -150,9 +217,9 @@ void registerNativeMenuCallback(CPauseMenuItem * item, CMenuItemEventCallback ca
 	if (it == g_customPrefs.end())
 	{
 		CustomMenuPref p;
+		p.m_item = item;
 		p.m_callback = callback;
 		p.m_value = 0;
-
 		g_customPrefs.insert(std::make_pair(preferenceIdx, p));
 	}
 }
@@ -169,7 +236,9 @@ void initializeGame()
 
 	result = Pattern((BYTE*)"\x0F\xB7\x54\x51\x00", "xxxx?").get();
 
-	activeMenuArray = *(rage::pgCollection<CPauseMenuInstance>*)(*reinterpret_cast<int *>(result - 4) + result);
+	g_activeMenuArray = (rage::pgCollection<CPauseMenuInstance>*)(*reinterpret_cast<int *>(result - 4) + result);
+
+	g_origMenuCount = g_activeMenuArray->m_count;
 
 	Pattern pattern = Pattern((BYTE*)"\x83\xFF\x05\x74\x15", "xxxxx");
 
@@ -184,10 +253,20 @@ void initializeGame()
 	pattern = Pattern((BYTE*)"\xF2\x0F\x2C\x56\x00", "xxxx?");
 
 	g_setPauseMenuPreferenceFn = HookManager::SetCall<SetPauseMenuPreference_t>(pattern.get(0x20), SetPauseMenuPreference_Stub);
+
+	pattern = Pattern((BYTE*)"\x44\x8B\x4C\x24\x00\x45\x8B\xC5", "xxxx?xxx");
+	
+	g_callInteractionResponseFn = HookManager::SetCall<CallFunctionOnMovie>(pattern.get(-0x9), callFunctionOnMovie_Stub);	
 }
 
 void unload()
 {
+	if (g_callInteractionResponseFn)
+	{
+		delete g_callInteractionResponseFn;
+		g_callInteractionResponseFn = nullptr;
+	}
+
 	if (g_getGxtEntryFn)
 	{
 		delete g_getGxtEntryFn;
