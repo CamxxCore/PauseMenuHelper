@@ -33,6 +33,34 @@ namespace rage
 	};
 }
 
+enum eScaleformParameterType
+{
+	SPT_NONE = 0,
+	SPT_FLOAT = 1,
+	SPT_BOOLEAN = 2,
+	SPT_STRING = 4,
+};
+
+union CScaleformParameterValue
+{
+	bool enabled;
+	int integer;
+	unsigned int unsignedInt;
+	unsigned int hash;
+	const char * string;
+	float value;
+	double dvalue;
+};
+
+struct CScaleformParameter
+{
+	CScaleformParameterValue m_value; //0x-0x8
+	eScaleformParameterType m_type; // 0x8-0xC
+	int m_pad; //0xC-0x10
+	bool m_unk; // true if value is a string.
+	char pad0[0xF];
+}; //sizeof=0x20
+
 struct CPauseMenuItem
 {
 	int menuIndex; // 0x0-0x4

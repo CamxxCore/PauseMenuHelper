@@ -5,26 +5,31 @@
 
 enum class MenuType;
 
+using namespace	System::Collections::Generic;
+
 public ref class PauseMenu
 {
-internal:
-	CPauseMenuInstance * cmenu;
-
 public:
 	property MenuType MenuID {
 		MenuType get() {
-			return (MenuType) cmenu->menuId;
+			auto cmenu = lookupMenuForIndex(m_menuId);
+			if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
+			return (MenuType)cmenu->menuId;
 		}
 	}
 
 	property int ItemCount {
 		int get() {
+			auto cmenu = lookupMenuForIndex(m_menuId);
+			if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
 			return cmenu->itemCount;
 		}
 	}
 
 	property System::IntPtr MemoryAddress {
 		System::IntPtr get() {
+			auto cmenu = lookupMenuForIndex(m_menuId);
+			if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
 			return System::IntPtr(cmenu);
 		}
 	}
@@ -32,33 +37,58 @@ public:
 	property PauseMenuItem ^ default[int]
 	{
 		PauseMenuItem ^ get(int index) {
-		if (index < 0 || index > cmenu->itemCount - 1)
+
+		auto cmenu = lookupMenuForIndex(m_menuId);
+		if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
+
+		if (index < 0 || index > cmenu->itemCount - 1) 
 			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
-		return gcnew PauseMenuItem(&cmenu->items[index]);
+
+			int origCount = cmenu->itemCount - m_addedItemCount;
+
+			if (index >= origCount)
+			{
+				return m_addedItems[index - origCount];
+			}
+
+			else
+			{
+				auto item = gcnew PauseMenuItem();
+				item->Initialize(cmenu, &cmenu->items[index]);
+				return item;
+			}
 	}
 
 	void set(int index, PauseMenuItem ^ value) {
+		auto cmenu = lookupMenuForIndex(m_menuId);
+		if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
 		if (index < 0 || index > cmenu->itemCount - 1)
 			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
-		cmenu->items[index] = *value->m_item;
+		cmenu->items[index] = (*value->getMenuRef());
 	}
 	}
-
-	PauseMenu(MenuType menuType);
-	PauseMenu();
+	
 	PauseMenuItem ^ AddItem(System::String ^ text);
 	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type);
 	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype);
-	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType subMenuType);
-	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType subMenuType, int settingIndex);
+	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType childMenu);
+	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType childMenu, int settingIndex);
+
 	int IndexOf(PauseMenuItem ^ item);
 	void Remove(PauseMenuItem ^ item);
 	void RemoveAt(int index);
+	void Clear();
+
+	PauseMenu(MenuType menuType);
+	PauseMenu();
 
 private:
 	~PauseMenu();
 	!PauseMenu();
-	int m_addedItemCount;
+	List<PauseMenuItem^> ^ m_addedItems;
+	bool bIsAddonMenu = false;
+	int m_menuId = 0;
+	int m_addedItemCount = 0;
 };
 
 public enum class MenuType : int

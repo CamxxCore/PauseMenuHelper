@@ -1,95 +1,63 @@
 #pragma once
 
-ref class PauseMenu;
+public delegate void MenuValueChangedEvent(int parentId, int itemIndex, int value);
 
-public ref class PauseMenuItemChangedEventArgs : public System::EventArgs
-{
-public:
-	PauseMenuItemChangedEventArgs(int oldValue, int newValue)
-	{
-		m_oldValue = oldValue;
-		m_newValue = newValue;
-	}
-
-	property int OldValue {
-		int get()
-		{
-			return m_oldValue;
-		}
-	}
-
-	property int NewValue {
-		int get()
-		{
-			return m_newValue;
-		}
-	}
-
-private:
-	int m_oldValue;
-	int m_newValue;
-};
-
-ref class PauseMenuItem;
-
-public delegate void MenuValueChangedEvent(PauseMenuItem^, PauseMenuItemChangedEventArgs^);
-public delegate void NativeMenuValueChangedEvent(CPauseMenuItem*, int, int);
+public delegate void NativeMenuValueChangedEvent(CPauseMenuInstance*, int, int);
 
 public ref class PauseMenuItem
 {
 internal:
 	NativeMenuValueChangedEvent ^ m_nativeCallback;
 	static MenuValueChangedEvent ^ m_managedCallback;
-	void Initialize();
+	void Initialize(CPauseMenuInstance * parent, CPauseMenuItem * item);
 	~PauseMenuItem();
 	!PauseMenuItem();
 
 public:
+	property int MenuID {
+		int get() {
+			return getMenuRef()->menuIndex;
+		}
+
+		void set(int value) {
+			getMenuRef()->menuIndex = value;
+		}
+	}
 
 	property int PrefID {
 		int get() {
-			return getMenuPreference(m_item->settingId);
+			return getMenuPreference(getMenuRef()->settingId);
 		}
 		void set(int value) {
-			setMenuPreference(m_item->settingId, value);
+			setMenuPreference(getMenuRef()->settingId, value);
 		}
 	}
 
 	property System::String ^ Text {
 		System::String ^ get() {
-			return gcnew System::String(
-				getGxtEntry(m_item->textHash));
+			return gcnew System::String(getGxtEntry(getMenuRef()->textHash));
 		}
 
 		void set(System::String ^ text) {
 			const char* cstr = (const char*)(void*)System::Runtime::InteropServices::Marshal::StringToHGlobalAnsi(text);
-			m_item->textHash = 
-				setGxtEntry(cstr, cstr);
+			getMenuRef()->textHash = setGxtEntry(cstr, cstr);
 		}
 	}
 
 	property System::IntPtr MemoryAddress {
 		System::IntPtr get() {
-			return System::IntPtr(m_item);
-		}
-	}
-
-	property int MenuID {
-		int get() {
-			return m_item->menuIndex;
-		}
-
-		void set(int value) {
-			m_item->menuIndex = (int)value;
+			CPauseMenuItem * pItem = getMenuRef();
+			return System::IntPtr(pItem);
 		}
 	}
 
 	property bool IsSelectable {
 		bool get() {
-			return (m_item->stateFlags & 1) == 0;
+			return (getMenuRef()->stateFlags & 1) == 0;
 		}
+
 		void set(bool value) {
-			m_item->stateFlags = !value;
+			getMenuRef()->stateFlags = !value;
 		}
 	}
 
@@ -102,17 +70,30 @@ public:
 		}
 	}
 
-	 static void valueChanged(CPauseMenuItem * item, int oldValue, int newValue) {
+	static void valueChanged(CPauseMenuInstance * parent, int itemIndex, int newValue) {
 		if (m_managedCallback != nullptr)
 		{
-			OutputDebugStringA("Firing event from PauseMenuItem::valueChanged()");
-			return m_managedCallback(gcnew PauseMenuItem(item), gcnew PauseMenuItemChangedEventArgs(oldValue, newValue));
+			OutputDebugString(TEXT("Firing event from PauseMenuItem::valueChanged()"));
+			m_managedCallback(parent->menuId, itemIndex, newValue);
 		}
 	}
 
 internal:
-	PauseMenuItem(CPauseMenuItem * ref);
-	CPauseMenuItem * m_item;
+	PauseMenuItem();
+	inline CPauseMenuItem * getMenuRef()
+	{
+		auto cmenu = lookupMenuForIndex(m_parentId);
+		if (!cmenu) 
+			throw gcnew System::NullReferenceException("Internal menu reference was null.");
+		auto pItem = &cmenu->items[m_menuIndex];
+		if (!pItem) 
+			throw gcnew System::NullReferenceException("Internal item reference was null.");
+		return pItem;
+	}
+
+private:
+	int m_menuIndex;
+	int m_parentId;
 };
 
 public enum class MenuItemType : int

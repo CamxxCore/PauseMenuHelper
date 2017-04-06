@@ -1,16 +1,17 @@
 #include "stdafx.h"
 
-PauseMenuItem::PauseMenuItem(CPauseMenuItem* item)
-{
-	m_item = item;
-}
+PauseMenuItem::PauseMenuItem()
+{ }
 
-void PauseMenuItem::Initialize()
+void PauseMenuItem::Initialize(CPauseMenuInstance * parent, CPauseMenuItem * item)
 {
+	m_parentId = parent->menuId;
+
+	m_menuIndex = CMenuFunctions::GetItemIndex(parent, item);
+
 	m_nativeCallback = gcnew NativeMenuValueChangedEvent(&valueChanged);
 
-	registerMenuPrefCallback(m_item,
-		CMenuPreferenceCallback(
+	registerMenuPref(item->settingId, parent->menuId, m_menuIndex, CMenuPreferenceCallback(
 			Marshal::GetFunctionPointerForDelegate(m_nativeCallback).ToPointer()));
 }
 
@@ -21,5 +22,14 @@ PauseMenuItem::~PauseMenuItem()
 
 PauseMenuItem::!PauseMenuItem()
 {
-	registerMenuPrefCallback(m_item, nullptr);
+	auto cmenu = lookupMenuForIndex(m_parentId);
+
+	if (cmenu)
+	{
+		auto item = &cmenu->items[m_menuIndex];
+		if (item)
+		{
+			unregisterMenuPref(item->settingId);
+		}
+	}
 }

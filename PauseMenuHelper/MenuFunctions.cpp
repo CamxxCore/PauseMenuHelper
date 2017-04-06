@@ -2,18 +2,17 @@
 
 CPauseMenuItem * CMenuFunctions::AppendItem(CPauseMenuInstance * pMenu, const char * label, int menuIndex, int type, int actionType, int settingIdx, int stateFlags, bool bFreeOldItems)
 {
+	CPauseMenuItem item;
+	item.type = type;
+	item.menuIndex = menuIndex;
+	item.textHash = setGxtEntry(label, label);
+	item.settingId = settingIdx;
+	item.actionType = actionType;
+	item.stateFlags = stateFlags;
+
 	SetSize(pMenu, pMenu->itemCount + 1, bFreeOldItems);
 
-	CPauseMenuItem newItem;
-
-	newItem.type = type;
-	newItem.menuIndex = menuIndex;
-	newItem.textHash = setGxtEntry(label, label);
-	newItem.settingId = settingIdx;
-	newItem.actionType = actionType;
-	newItem.stateFlags = stateFlags;
-
-	pMenu->items[pMenu->itemCount - 1] = newItem;
+	pMenu->items[pMenu->itemCount - 1] = item;
 
 	return &pMenu->items[pMenu->itemCount - 1];
 }
@@ -43,7 +42,7 @@ void CMenuFunctions::RemoveItem(CPauseMenuInstance * pMenu, CPauseMenuItem * pIt
 	for (int i = 0; i < pMenu->itemCount; i++)
 	{
 		if (pItem == &pMenu->items[i])
-		{
+		{		
 			for (int x = i; x < pMenu->itemCount - 1; x++)
 				pMenu->items[x] = pMenu->items[x + 1];
 			SetSize(pMenu, pMenu->itemCount - 1);
@@ -59,6 +58,5 @@ int CMenuFunctions::GetItemIndex(CPauseMenuInstance * pMenu, CPauseMenuItem * pI
 		if (pItem == &pMenu->items[i])
 			return i;
 	}
-
 	return -1;
 }

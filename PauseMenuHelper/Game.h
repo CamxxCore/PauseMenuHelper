@@ -16,15 +16,19 @@ typedef void(*SetPauseMenuPreference_t)(long long settingIndex, int value, unsig
 
 typedef bool(*SetMenuSlot_t)(int columnId, int slotIndex, int menuState, int settingIndex, int unk, int value, const char * text, bool bPopScaleform, bool bIsSlotUpdate);
 
-typedef void(*CallFunctionOnMovie)(void * sfMovie, const char * functionName, void * arg, void * arg1, void * arg2, void * arg3);
+typedef void(*CallFunctionOnMovie)(void * sfMovie, const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3);
 
-typedef void(__stdcall * CMenuPreferenceCallback)(CPauseMenuItem * item, int oldValue, int newValue);
+typedef void(*CMenuPreferenceCallback)(CPauseMenuInstance * parent, int itemIndex, int value);
 
 CPauseMenuInstance * lookupMenuForIndex(int menuIndex);
 
 int getFreeMenuIndex();
 
-CPauseMenuInstance *  addMenuInstance();
+CPauseMenuInstance * addMenuInstance(int menuId);
+
+void removeMenuInstance(CPauseMenuInstance * menu);
+
+void callMenuMovieFunction(const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3);
 
 void setMenuPreference(int settingIndex, int value);
 
@@ -36,7 +40,9 @@ unsigned int setGxtEntry(const char * key, const char * text);
 
 const char * getGxtEntry(unsigned int key);
 
-void registerMenuPrefCallback(CPauseMenuItem * item, CMenuPreferenceCallback callback);
+void registerMenuPref(int prefIdx, int menuId, int itemIndex, CMenuPreferenceCallback callback);
+
+void unregisterMenuPref(int prefIdx);
 
 void initializeGame();
 
