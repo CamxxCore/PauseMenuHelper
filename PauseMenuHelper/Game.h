@@ -24,13 +24,15 @@ CPauseMenuInstance * lookupMenuForIndex(int menuIndex);
 
 int getFreeMenuIndex();
 
+int getFreeSettingIndex();
+
 CPauseMenuInstance * addMenuInstance(int menuId);
 
 void removeMenuInstance(CPauseMenuInstance * menu);
 
 void callMenuMovieFunction(const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3);
 
-void setMenuPreference(int settingIndex, int value);
+void setMenuPreference(int settingIndex, int value, bool ignoreCallback = false);
 
 int getMenuPreference(int settingIndex);
 
@@ -40,9 +42,9 @@ unsigned int setGxtEntry(const char * key, const char * text);
 
 const char * getGxtEntry(unsigned int key);
 
-void registerMenuPref(int prefIdx, int menuId, int itemIndex, CMenuPreferenceCallback callback);
+void registerMenuPref(int prefId, int menuId, int itemIndex, CMenuPreferenceCallback callback);
 
-void unregisterMenuPref(int prefIdx);
+void unregisterMenuPref(int prefId);
 
 void initializeGame();
 

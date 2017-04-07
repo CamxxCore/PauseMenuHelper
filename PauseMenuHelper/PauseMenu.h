@@ -12,36 +12,29 @@ public ref class PauseMenu
 public:
 	property MenuType MenuID {
 		MenuType get() {
-			auto cmenu = lookupMenuForIndex(m_menuId);
-			if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
-			return (MenuType)cmenu->menuId;
+			return (MenuType)getMenuRef()->menuId;
 		}
 	}
 
 	property int ItemCount {
 		int get() {
-			auto cmenu = lookupMenuForIndex(m_menuId);
-			if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
-			return cmenu->itemCount;
+			return getMenuRef()->itemCount;
 		}
 	}
 
 	property System::IntPtr MemoryAddress {
 		System::IntPtr get() {
-			auto cmenu = lookupMenuForIndex(m_menuId);
-			if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
-			return System::IntPtr(cmenu);
+			auto pMenu = getMenuRef();
+			return System::IntPtr(pMenu);
 		}
 	}
 
 	property PauseMenuItem ^ default[int]
 	{
 		PauseMenuItem ^ get(int index) {
+		CPauseMenuInstance* cmenu = getMenuRef();
 
-		auto cmenu = lookupMenuForIndex(m_menuId);
-		if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
-
-		if (index < 0 || index > cmenu->itemCount - 1) 
+		if (index < 0 || index >= cmenu->itemCount)
 			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
 
 			int origCount = cmenu->itemCount - m_addedItemCount;
@@ -54,17 +47,18 @@ public:
 			else
 			{
 				auto item = gcnew PauseMenuItem();
+
 				item->Initialize(cmenu, &cmenu->items[index]);
+
 				return item;
 			}
 	}
 
 	void set(int index, PauseMenuItem ^ value) {
-		auto cmenu = lookupMenuForIndex(m_menuId);
-		if (!cmenu) throw gcnew System::NullReferenceException("Internal menu reference was null.");
-		if (index < 0 || index > cmenu->itemCount - 1)
+		CPauseMenuInstance*  cmenu = getMenuRef();
+		if (index < 0 || index >= cmenu->itemCount)
 			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
-		cmenu->items[index] = (*value->getMenuRef());
+		cmenu->items[index] = *value->baseRef();
 	}
 	}
 	
@@ -73,14 +67,25 @@ public:
 	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype);
 	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType childMenu);
 	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType childMenu, int settingIndex);
-
+	PauseMenuItem ^ AddItem(System::String ^ text, MenuSettingType settingType);
+	PauseMenuItem ^ AddItem(System::String ^ text, MenuSettingType settingType, int initialValue);
 	int IndexOf(PauseMenuItem ^ item);
 	void Remove(PauseMenuItem ^ item);
+	PauseMenuItem ^ ItemAt(int index);
 	void RemoveAt(int index);
 	void Clear();
-
 	PauseMenu(MenuType menuType);
 	PauseMenu();
+
+internal:
+
+	inline CPauseMenuInstance * getMenuRef()
+	{
+		CPauseMenuInstance* cmenu = lookupMenuForIndex(m_menuId);
+		if (!cmenu)
+			throw gcnew System::NullReferenceException("Internal menu reference was null.");
+		return cmenu;
+	}
 
 private:
 	~PauseMenu();

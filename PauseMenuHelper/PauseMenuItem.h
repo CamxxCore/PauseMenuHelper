@@ -16,48 +16,54 @@ internal:
 public:
 	property int MenuID {
 		int get() {
-			return getMenuRef()->menuIndex;
+			return baseRef()->menuIndex;
 		}
 
 		void set(int value) {
-			getMenuRef()->menuIndex = value;
+			baseRef()->menuIndex = value;
 		}
 	}
 
-	property int PrefID {
+	property int Value {
 		int get() {
-			return getMenuPreference(getMenuRef()->settingId);
+			return getMenuPreference(baseRef()->settingId);
 		}
 		void set(int value) {
-			setMenuPreference(getMenuRef()->settingId, value);
+			setMenuPreference(baseRef()->settingId, value);
+		}
+	}
+
+	property int SettingID {
+		int get() {
+			return baseRef()->settingId;
 		}
 	}
 
 	property System::String ^ Text {
 		System::String ^ get() {
-			return gcnew System::String(getGxtEntry(getMenuRef()->textHash));
+			return gcnew System::String(getGxtEntry(baseRef()->textHash));
 		}
 
 		void set(System::String ^ text) {
 			const char* cstr = (const char*)(void*)System::Runtime::InteropServices::Marshal::StringToHGlobalAnsi(text);
-			getMenuRef()->textHash = setGxtEntry(cstr, cstr);
+			baseRef()->textHash = setGxtEntry(cstr, cstr);
 		}
 	}
 
 	property System::IntPtr MemoryAddress {
 		System::IntPtr get() {
-			CPauseMenuItem * pItem = getMenuRef();
+			CPauseMenuItem * pItem = baseRef();
 			return System::IntPtr(pItem);
 		}
 	}
 
 	property bool IsSelectable {
 		bool get() {
-			return (getMenuRef()->stateFlags & 1) == 0;
+			return (baseRef()->stateFlags & 1) == 0;
 		}
 
 		void set(bool value) {
-			getMenuRef()->stateFlags = !value;
+			baseRef()->stateFlags = !value;
 		}
 	}
 
@@ -80,19 +86,20 @@ public:
 
 internal:
 	PauseMenuItem();
-	inline CPauseMenuItem * getMenuRef()
+
+	inline CPauseMenuItem * baseRef()
 	{
 		auto cmenu = lookupMenuForIndex(m_parentId);
 		if (!cmenu) 
 			throw gcnew System::NullReferenceException("Internal menu reference was null.");
-		auto pItem = &cmenu->items[m_menuIndex];
+		auto pItem = &cmenu->items[m_index];
 		if (!pItem) 
 			throw gcnew System::NullReferenceException("Internal item reference was null.");
 		return pItem;
 	}
 
 private:
-	int m_menuIndex;
+	int m_index;
 	int m_parentId;
 };
 

@@ -30,7 +30,9 @@ void CMenuFunctions::SetSize(CPauseMenuInstance * pMenu, int newItemCount, bool 
 	memcpy_s(newItemArray, newSize, pMenu->items, min(newSize, pMenu->itemCount * sizeof(CPauseMenuItem)));
 
 	pMenu->itemCount = newItemCount;
+
 	pMenu->maxItems = newItemCount;
+
 	pMenu->items = newItemArray;
 
 	if (bFreeOldItems)

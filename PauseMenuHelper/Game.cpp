@@ -34,6 +34,8 @@ std::map<int, CustomMenuPref> g_customPrefs;
 
 int g_origMenuCount;
 
+bool bIgnoreNextMenuEvent = false;
+
 void callFunctionOnMovie_Stub(void * sfMovie, const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3)
 {
 	int menuState = (int)(*reinterpret_cast<double*>(arg)) - 1000;
@@ -79,8 +81,6 @@ bool SetMenuSlot_Stub(int columnId, int slotIndex, int menuState, int settingInd
 
 void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int unk)
 {
-	OutputDebugString(TEXT("SetPauseMenuPreference_Stub(): Setting menu pref..."));
-
 	if (settingIndex >= 200)
 	{
 		auto it = g_customPrefs.find((int)settingIndex);
@@ -91,17 +91,22 @@ void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int
 
 			it->second.m_value = value;
 
-			if (it->second.m_callback)
+			if (!bIgnoreNextMenuEvent)
 			{
-				auto cmenu = lookupMenuForIndex(it->second.m_menuId);
-
-				if (cmenu)
+				if (it->second.m_callback)
 				{
-					OutputDebugString(TEXT("SetPauseMenuPreference_Stub(): Invoking callback.."));
+					auto cmenu = lookupMenuForIndex(it->second.m_menuId);
 
-					it->second.m_callback(cmenu, it->second.m_itemIndex, value);
+					if (cmenu)
+					{
+						OutputDebugString(TEXT("SetPauseMenuPreference_Stub(): Invoking callback.."));
+
+						it->second.m_callback(cmenu, it->second.m_itemIndex, value);
+					}
 				}
 			}
+
+			else bIgnoreNextMenuEvent = false;
 		}
 	}
 
@@ -123,8 +128,9 @@ int getMenuPreference(int settingIndex)
 	return -1;
 }
 
-void setMenuPreference(int settingIndex, int value)
+void setMenuPreference(int settingIndex, int value, bool ignoreCallback)
 {
+	bIgnoreNextMenuEvent = ignoreCallback;
 	SetPauseMenuPreference_Stub(settingIndex, value, 3u);
 }
 
@@ -180,6 +186,21 @@ int getFreeMenuIndex()
 	menuId++;
 
 	return menuId;
+}
+
+int getFreeSettingIndex()
+{
+	int settingIndex = 200;
+
+	while (getMenuPreference(settingIndex) != -1)
+	{
+		settingIndex++;
+
+		if (settingIndex > 255)
+			return 0;
+	}
+
+	return settingIndex;
 }
 
 void callMenuMovieFunction(const char * functionName, 
@@ -264,9 +285,9 @@ void removeMenuInstance(CPauseMenuInstance * menu)
 	g_activeMenuArray->m_size = newItemCount;
 }
 
-void registerMenuPref(int prefIdx, int menuId, int itemIndex, CMenuPreferenceCallback callback)
+void registerMenuPref(int prefId, int menuId, int itemIndex, CMenuPreferenceCallback callback)
 {
-	auto it = g_customPrefs.find(prefIdx);
+	auto it = g_customPrefs.find(prefId);
 
 	if (it == g_customPrefs.end())
 	{
@@ -275,19 +296,18 @@ void registerMenuPref(int prefIdx, int menuId, int itemIndex, CMenuPreferenceCal
 		p.m_itemIndex = itemIndex;
 		p.m_callback = callback;
 		p.m_value = 0;
-		g_customPrefs.insert(std::make_pair(prefIdx, p));
+
+		g_customPrefs.insert(std::make_pair(prefId, p));
 	}
 }
 
-void unregisterMenuPref(int prefIdx)
+void unregisterMenuPref(int prefId)
 {
-	OutputDebugString(TEXT("Unregistering menu pref.."));
-
-	auto it = g_customPrefs.find(prefIdx);
+	auto it = g_customPrefs.find(prefId);
 
 	if (it != g_customPrefs.end())
 	{
-		g_customPrefs.erase(prefIdx);
+		g_customPrefs.erase(prefId);
 	}
 }
 
