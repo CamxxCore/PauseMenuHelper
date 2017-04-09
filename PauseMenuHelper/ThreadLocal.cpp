@@ -26,7 +26,6 @@ HANDLE ThreadLocal::GetDefaultThread()
 	// Loop through all threads in every process. 
 	do
 	{
-
 		// Only current process, please. 
 		if (te32.th32OwnerProcessID != dwCurrentProcessId)
 			continue;
@@ -44,7 +43,7 @@ HANDLE ThreadLocal::GetDefaultThread()
 	return hThread;
 }
 
-DWORD64 ThreadLocal::GetThreadLocalStorage(HANDLE hThread)
+TEB_T * ThreadLocal::GetTeb(HANDLE hThread)
 {
 	TEB_T *pTeb;
 
@@ -69,39 +68,7 @@ DWORD64 ThreadLocal::GetThreadLocalStorage(HANDLE hThread)
 		pTeb = (TEB_T*)info.TebBaseAddress;
 	}
 
-	return pTeb->ThreadLocalStoragePointer;
-}
-
-bool ThreadLocal::ReplaceThreadTls(HANDLE hThread, DWORD64 newTls, DWORD64 *oldTls)
-{
-	TEB_T *pTeb;
-
-	if (hThread == GetCurrentThread())
-	{
-		pTeb = GetCurrentTeb();
-	}
-
-	else
-	{
-		_THREAD_BASIC_INFORMATION info = { 0 };
-
-		NTQUERYINFOMATIONTHREAD NtQueryInformationThread =
-			(NTQUERYINFOMATIONTHREAD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationThread");
-
-		if (NtQueryInformationThread == NULL) return false;
-
-		NTSTATUS status = NtQueryInformationThread(hThread, (THREADINFOCLASS)ThreadBasicInformation, &info, sizeof(info), NULL);
-
-		if (!NT_SUCCESS(status)) return false;
-
-		pTeb = (TEB_T*)info.TebBaseAddress;
-	}
-
-	*oldTls = pTeb->ThreadLocalStoragePointer;
-
-	pTeb->ThreadLocalStoragePointer = newTls;
-
-	return true;
+	return pTeb;
 }
 
 TEB_T * ThreadLocal::GetCurrentTeb()
@@ -109,3 +76,22 @@ TEB_T * ThreadLocal::GetCurrentTeb()
 	return (TEB_T*)NtCurrentTeb();
 }
 
+DWORD64 ThreadLocal::GetThreadLocalStorage(HANDLE hThread)
+{
+	TEB_T * pTeb = GetTeb(hThread);
+
+	if (!pTeb) return NULL;
+
+	return pTeb->ThreadLocalStoragePointer;
+}
+
+bool ThreadLocal::ReplaceThreadTls(HANDLE hThread, DWORD64 newTls, DWORD64 *oldTls)
+{
+	TEB_T *pTeb = GetTeb(hThread);
+
+	*oldTls = pTeb->ThreadLocalStoragePointer;
+
+	pTeb->ThreadLocalStoragePointer = newTls;
+
+	return true;
+}

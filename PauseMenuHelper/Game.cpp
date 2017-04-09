@@ -30,6 +30,7 @@ struct CustomMenuPref
 	CMenuPreferenceCallback m_callback;
 };
 
+
 std::map<int, CustomMenuPref> g_customPrefs;
 
 int g_origMenuCount;
@@ -66,7 +67,7 @@ const char * getGxtEntry_Stub(void * gtxArray, unsigned int hashName)
 
 bool SetMenuSlot_Stub(int columnId, int slotIndex, int menuState, int settingIndex, int unk, int value, const char * text, bool bPopScaleform, bool bSlotUpdate)
 {
-	if (settingIndex >= 200)
+	if (settingIndex >= 200) // custom?
 	{
 		auto it = g_customPrefs.find(settingIndex);
 
@@ -313,7 +314,7 @@ void unregisterMenuPref(int prefId)
 
 void initializeGame()
 {
-	auto result = Pattern((BYTE*)"\x3B\xC7\x74\x18", "xxxx").get(-0x5);
+	auto result = BytePattern((BYTE*)"\x3B\xC7\x74\x18", "xxxx").get(-0x5);
 
 	if (result)
 	{
@@ -323,7 +324,7 @@ void initializeGame()
 	else 
 		OutputDebugString(TEXT("initializeGame(): Failed to find g_getHashKey"));
 		
-	result = Pattern((BYTE*)"\x48\x85\xC0\x75\x34\x8B\x0D", "xxxxxxx").get(-0x5);
+	result = BytePattern((BYTE*)"\x48\x85\xC0\x75\x34\x8B\x0D", "xxxxxxx").get(-0x5);
 
 	if (result)
 	{
@@ -333,7 +334,7 @@ void initializeGame()
 	else 
 		OutputDebugString(TEXT("initializeGame(): Failed to find g_getGxtEntryFn"));
 
-	result = Pattern((BYTE*)"\x0F\xB7\x54\x51\x00", "xxxx?").get();
+	result = BytePattern((BYTE*)"\x0F\xB7\x54\x51\x00", "xxxx?").get();
 
 	if (result)
 	{
@@ -345,10 +346,10 @@ void initializeGame()
 	else 
 		OutputDebugString(TEXT("initializeGame(): Failed to find g_activeMenuArray"));
 
-	Pattern pattern = Pattern((BYTE*)"\x83\xFF\x05\x74\x15", "xxxxx");
+	BytePattern pattern = BytePattern((BYTE*)"\x83\xFF\x05\x74\x15", "xxxxx");
 
 	result = pattern.get(-0x1A);
-
+	
 	if (result)
 	{
 		g_createSliderItemFn = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Stub); //-0x1A
@@ -377,7 +378,7 @@ void initializeGame()
 	else 
 		OutputDebugString(TEXT("initializeGame(): Failed to find g_globalTextManager #2"));
 
-	pattern = Pattern((BYTE*)"\xF2\x0F\x2C\x56\x00", "xxxx?");
+	pattern = BytePattern((BYTE*)"\xF2\x0F\x2C\x56\x00", "xxxx?");
 
 	result = pattern.get(0x20);
 
@@ -400,7 +401,7 @@ void initializeGame()
 	else 
 		OutputDebugString(TEXT("initializeGame(): Failed to find toggle prefs patch"));
 
-	pattern = Pattern((BYTE*)"\x44\x8B\x4C\x24\x00\x45\x8B\xC5", "xxxx?xxx");
+	pattern = BytePattern((BYTE*)"\x44\x8B\x4C\x24\x00\x45\x8B\xC5", "xxxx?xxx");
 
 	result = pattern.get(-0x9);
 

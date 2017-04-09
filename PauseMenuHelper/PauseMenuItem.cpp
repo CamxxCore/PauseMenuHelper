@@ -6,7 +6,9 @@ PauseMenuItem::PauseMenuItem()
 void PauseMenuItem::Initialize(CPauseMenuInstance * parent, CPauseMenuItem * item)
 {
 	m_parentId = parent->menuId;
+
 	m_index = CMenuFunctions::GetItemIndex(parent, item);
+
 	m_nativeCallback = gcnew NativeMenuValueChangedEvent(&valueChanged);
 
 	registerMenuPref(item->settingId, parent->menuId, m_index, CMenuPreferenceCallback(

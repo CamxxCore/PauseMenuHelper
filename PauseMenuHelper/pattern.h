@@ -2,13 +2,24 @@
 
 #include <Psapi.h>
 
-class Pattern sealed
+template <typename T>
+class Pattern
 {
 public:
-	Pattern(const BYTE* bMask, const char* szMask) : bMask(bMask), szMask(szMask) {}
+	Pattern(const BYTE* bMask, const char* szMask) : bMask(bMask), szMask(szMask) 
+	{
+		bSuccess = findPattern();
+	}
 
-	template <typename T>
 	inline T get(int offset = 0)
+	{
+		return pResult + offset;
+	}
+
+	bool bSuccess;
+
+private:
+	bool findPattern()
 	{
 		MODULEINFO module = {};
 
@@ -18,23 +29,19 @@ public:
 
 		auto address_end = address + module.SizeOfImage;
 
-		for (; address < address_end; address++)
+		for (;address < address_end; address++)
 		{
 			if (bCompare((BYTE*)(address), bMask, szMask))
 			{
-				return (T)(address + offset);
+				pResult = (T)address;
+				return true;
 			}
 		}
 
-		return 0;
+		pResult = NULL;
+		return false;
 	}
 
-	inline uintptr_t get(int offset = 0)
-	{
-		return get<uintptr_t>(offset);
-	}
-
-private:
 	inline bool bCompare(const BYTE* pData, const BYTE* bMask, const char* szMask)
 	{
 		for (; *szMask; ++szMask, ++pData, ++bMask)
@@ -44,4 +51,12 @@ private:
 	}
 
 	const BYTE *bMask; const char* szMask;
+	T pResult;
+};
+
+class BytePattern : public Pattern<uintptr_t>
+{
+public:
+	BytePattern(const BYTE* bMask, const char* szMask) : 
+		Pattern<uintptr_t>(bMask, szMask) {}
 };

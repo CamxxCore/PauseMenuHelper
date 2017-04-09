@@ -43,7 +43,7 @@ PauseMenuItem^ PauseMenu::AddItem(System::String ^ text, MenuItemType type, int 
 
 PauseMenuItem^ PauseMenu::AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType childMenu)
 {
-	return AddItem(text, type, subtype, childMenu, getFreeSettingIndex());
+	return AddItem(text, type, subtype, childMenu, 0);
 }
 
 PauseMenuItem^ PauseMenu::AddItem(System::String ^ text, MenuItemType type, int subtype)
@@ -63,7 +63,7 @@ PauseMenuItem^ PauseMenu::AddItem(System::String ^ text)
 
 PauseMenuItem ^ PauseMenu::AddItem(System::String ^ text, MenuSettingType settingType, int initialValue)
 {
-	auto item = AddItem(text, MenuItemType::Setting, (int)settingType);
+	auto item = AddItem(text, MenuItemType::Setting, (int)settingType, MenuType::Settings_List, getFreeSettingIndex());
 
 	auto baseitem = item->baseRef();
 
