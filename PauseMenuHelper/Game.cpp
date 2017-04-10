@@ -22,6 +22,8 @@ rage::pgCollection<CPauseMenuInstance> * g_activeMenuArray;
 
 uintptr_t g_globalTextManager = 0;
 
+int g_nativeMenuPrefCount = 0;
+
 struct CustomMenuPref
 {
 	int m_menuId;
@@ -67,7 +69,7 @@ const char * getGxtEntry_Stub(void * gtxArray, unsigned int hashName)
 
 bool SetMenuSlot_Stub(int columnId, int slotIndex, int menuState, int settingIndex, int unk, int value, const char * text, bool bPopScaleform, bool bSlotUpdate)
 {
-	if (settingIndex >= 200) // custom?
+	if (settingIndex >= 175) // custom?
 	{
 		auto it = g_customPrefs.find(settingIndex);
 
@@ -82,14 +84,12 @@ bool SetMenuSlot_Stub(int columnId, int slotIndex, int menuState, int settingInd
 
 void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int unk)
 {
-	if (settingIndex >= 200)
+	if (settingIndex >= 175)
 	{
 		auto it = g_customPrefs.find((int)settingIndex);
 
 		if (it != g_customPrefs.end())
 		{
-			OutputDebugString(TEXT("SetPauseMenuPreference_Stub(): Found custom pref.."));
-
 			it->second.m_value = value;
 
 			if (!bIgnoreNextMenuEvent)
@@ -100,8 +100,6 @@ void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int
 
 					if (cmenu)
 					{
-						OutputDebugString(TEXT("SetPauseMenuPreference_Stub(): Invoking callback.."));
-
 						it->second.m_callback(cmenu, it->second.m_itemIndex, value);
 					}
 				}
@@ -116,7 +114,7 @@ void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int
 
 int getMenuPreference(int settingIndex)
 {
-	if (settingIndex >= 200)
+	if (settingIndex >= 175)
 	{
 		auto it = g_customPrefs.find((int)settingIndex);
 
@@ -191,7 +189,7 @@ int getFreeMenuIndex()
 
 int getFreeSettingIndex()
 {
-	int settingIndex = 200;
+	int settingIndex = 175;
 
 	while (getMenuPreference(settingIndex) != -1)
 	{
@@ -321,8 +319,11 @@ void initializeGame()
 		g_getHashKey = (GetHashKey_t)(*reinterpret_cast<int *>(result - 4) + result);
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find g_getHashKey"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find g_getHashKey");
+		return;
+	}
 		
 	result = BytePattern((BYTE*)"\x48\x85\xC0\x75\x34\x8B\x0D", "xxxxxxx").get(-0x5);
 
@@ -331,8 +332,11 @@ void initializeGame()
 		g_getGxtEntryFn = HookManager::SetCall<GetGlobalTextEntry_t>(result, getGxtEntry_Stub);
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find g_getGxtEntryFn"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find g_getGxtEntryFn");
+		return;
+	}
 
 	result = BytePattern((BYTE*)"\x0F\xB7\x54\x51\x00", "xxxx?").get();
 
@@ -343,8 +347,11 @@ void initializeGame()
 		g_origMenuCount = g_activeMenuArray->m_count;
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find g_activeMenuArray"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find g_activeMenuArray");
+		return;
+	}
 
 	BytePattern pattern = BytePattern((BYTE*)"\x83\xFF\x05\x74\x15", "xxxxx");
 
@@ -355,8 +362,11 @@ void initializeGame()
 		g_createSliderItemFn = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Stub); //-0x1A
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find SetMenuSlot #1"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find SetMenuSlot #1");
+		return;
+	}
 
 	result = pattern.get(0xA8);
 
@@ -365,8 +375,11 @@ void initializeGame()
 		g_createToggleItemFn = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Stub); // +0xA8
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find SetMenuSlot #2"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find SetMenuSlot #2");
+		return;
+	}
 	
 	result = pattern.get(-0x58);
 
@@ -375,8 +388,11 @@ void initializeGame()
 		g_globalTextManager = (uintptr_t) *reinterpret_cast<int*>(result - 4) + result;
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find g_globalTextManager #2"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find g_globalTextManager #2");
+		return;
+	}
 
 	pattern = BytePattern((BYTE*)"\xF2\x0F\x2C\x56\x00", "xxxx?");
 
@@ -387,8 +403,11 @@ void initializeGame()
 		g_setPauseMenuPreferenceFn = HookManager::SetCall<SetPauseMenuPreference_t>(result, SetPauseMenuPreference_Stub);
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find g_setPauseMenuPreferenceFn"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find g_setPauseMenuPreferenceFn");
+		return;
+	}
 
 	result = pattern.get(0x12);
 
@@ -398,8 +417,11 @@ void initializeGame()
 		memset((void*)result, 0x90, 6);
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find toggle prefs patch"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find toggle prefs patch");
+		return;
+	}
 
 	pattern = BytePattern((BYTE*)"\x44\x8B\x4C\x24\x00\x45\x8B\xC5", "xxxx?xxx");
 
@@ -410,8 +432,11 @@ void initializeGame()
 		g_callInteractionResponseFn = HookManager::SetCall<CallFunctionOnMovie>(result, callFunctionOnMovie_Stub);
 	}
 
-	else 
-		OutputDebugString(TEXT("initializeGame(): Failed to find g_callInteractionResponseFn"));
+	else
+	{
+		OutputDebugStringA("initializeGame(): Failed to find g_callInteractionResponseFn");
+		return;
+	}
 }
 
 void unload()

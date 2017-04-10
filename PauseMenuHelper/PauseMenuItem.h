@@ -79,7 +79,6 @@ public:
 	static void valueChanged(CPauseMenuInstance * parent, int itemIndex, int newValue) {
 		if (m_managedCallback != nullptr)
 		{
-			OutputDebugString(TEXT("Firing event from PauseMenuItem::valueChanged()"));
 			m_managedCallback(parent->menuId, itemIndex, newValue);
 		}
 	}
