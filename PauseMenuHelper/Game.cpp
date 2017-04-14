@@ -2,6 +2,12 @@
 #include <mutex>
 #include <map>
 
+#ifdef _DEBUG
+#define DEBUGLOG(str) OutputDebugStringA(str);
+#else
+#define DEBUGLOG(str)
+#endif
+
 GetHashKey_t g_getHashKey;
 
 std::map<unsigned int, std::string> g_textEntries;
@@ -41,13 +47,15 @@ bool bIgnoreNextMenuEvent = false;
 
 void callFunctionOnMovie_Stub(void * sfMovie, const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3)
 {
-	int menuState = (int)(*reinterpret_cast<double*>(arg)) - 1000;
+	int menuState = static_cast<int>(arg->m_value.dvalue) - 1000;
 	// we need to explicity override the menu state here so the game loads
 	// a valid layout for custom sub menus.
 	// This is necessary or the game won't set any layout at all.
-	if (menuState > g_origMenuCount)
+	int idx = menuState - 148;
+
+	if (idx > 0 && idx < g_customPrefs.size())
 	{
-		*reinterpret_cast<double*>(arg) = 1136.0f;
+		arg->m_value.dvalue = 1136.0;
 	}
 
 	return g_callInteractionResponseFn->fn(sfMovie, functionName, arg, arg1, arg2, arg3);
@@ -86,20 +94,28 @@ void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int
 {
 	if (settingIndex >= 175)
 	{
+		DEBUGLOG("SetPauseMenuPreference_Stub(): Found a custom pref.. doing lookup.");
+
 		auto it = g_customPrefs.find((int)settingIndex);
 
 		if (it != g_customPrefs.end())
 		{
+			DEBUGLOG("SetPauseMenuPreference_Stub(): Found custom pref instance.");
+
 			it->second.m_value = value;
 
 			if (!bIgnoreNextMenuEvent)
 			{
 				if (it->second.m_callback)
 				{
+					DEBUGLOG("SetPauseMenuPreference_Stub(): Found callback..");
+
 					auto cmenu = lookupMenuForIndex(it->second.m_menuId);
 
 					if (cmenu)
 					{
+						DEBUGLOG("SetPauseMenuPreference_Stub(): Invoking callback..");
+
 						it->second.m_callback(cmenu, it->second.m_itemIndex, value);
 					}
 				}
@@ -129,7 +145,10 @@ int getMenuPreference(int settingIndex)
 
 void setMenuPreference(int settingIndex, int value, bool ignoreCallback)
 {
+	DEBUGLOG("setMenuPreference(): setting menu pref..");
+
 	bIgnoreNextMenuEvent = ignoreCallback;
+
 	SetPauseMenuPreference_Stub(settingIndex, value, 3u);
 }
 
@@ -200,15 +219,6 @@ int getFreeSettingIndex()
 	}
 
 	return settingIndex;
-}
-
-void callMenuMovieFunction(const char * functionName, 
-	CScaleformParameter * arg, 
-	CScaleformParameter * arg1, 
-	CScaleformParameter * arg2, 
-	CScaleformParameter * arg3)
-{
-	return callFunctionOnMovie_Stub((void*)0x141F4B3EC, functionName, arg, arg1, arg2, arg3);
 }
 
 CPauseMenuInstance * addMenuInstance(int menuId)
@@ -321,7 +331,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find g_getHashKey");
+		DEBUGLOG("initializeGame(): Failed to find g_getHashKey");
 		return;
 	}
 		
@@ -334,7 +344,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find g_getGxtEntryFn");
+		DEBUGLOG("initializeGame(): Failed to find g_getGxtEntryFn");
 		return;
 	}
 
@@ -349,7 +359,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find g_activeMenuArray");
+		DEBUGLOG("initializeGame(): Failed to find g_activeMenuArray");
 		return;
 	}
 
@@ -364,7 +374,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find SetMenuSlot #1");
+		DEBUGLOG("initializeGame(): Failed to find SetMenuSlot #1");
 		return;
 	}
 
@@ -377,7 +387,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find SetMenuSlot #2");
+		DEBUGLOG("initializeGame(): Failed to find SetMenuSlot #2");
 		return;
 	}
 	
@@ -390,7 +400,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find g_globalTextManager #2");
+		DEBUGLOG("initializeGame(): Failed to find g_globalTextManager #2");
 		return;
 	}
 
@@ -405,7 +415,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find g_setPauseMenuPreferenceFn");
+		DEBUGLOG("initializeGame(): Failed to find g_setPauseMenuPreferenceFn");
 		return;
 	}
 
@@ -419,7 +429,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find toggle prefs patch");
+		DEBUGLOG("initializeGame(): Failed to find toggle prefs patch");
 		return;
 	}
 
@@ -434,7 +444,7 @@ void initializeGame()
 
 	else
 	{
-		OutputDebugStringA("initializeGame(): Failed to find g_callInteractionResponseFn");
+		DEBUGLOG("initializeGame(): Failed to find g_callInteractionResponseFn");
 		return;
 	}
 }

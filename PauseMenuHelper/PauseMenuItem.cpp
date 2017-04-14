@@ -9,10 +9,10 @@ void PauseMenuItem::Initialize(CPauseMenuInstance * parent, CPauseMenuItem * ite
 
 	m_index = CMenuFunctions::GetItemIndex(parent, item);
 
-	m_nativeCallback = gcnew NativeMenuValueChangedEvent(&valueChanged);
-
 	if (item->settingId > 0)
 	{
+		m_nativeCallback = gcnew NativeMenuValueChangedEvent(this, &PauseMenuItem::valueChanged);
+
 		registerMenuPref(item->settingId, parent->menuId, m_index, CMenuPreferenceCallback(
 			Marshal::GetFunctionPointerForDelegate(m_nativeCallback).ToPointer()));
 	}

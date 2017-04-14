@@ -8,7 +8,7 @@ public ref class PauseMenuItem
 {
 internal:
 	NativeMenuValueChangedEvent ^ m_nativeCallback;
-	static MenuValueChangedEvent ^ m_managedCallback;
+	MenuValueChangedEvent ^ m_managedCallback;
 	void Initialize(CPauseMenuInstance * parent, CPauseMenuItem * item);
 	~PauseMenuItem();
 	!PauseMenuItem();
@@ -76,7 +76,7 @@ public:
 		}
 	}
 
-	static void valueChanged(CPauseMenuInstance * parent, int itemIndex, int newValue) {
+	void valueChanged(CPauseMenuInstance * parent, int itemIndex, int newValue) {
 		if (m_managedCallback != nullptr)
 		{
 			m_managedCallback(parent->menuId, itemIndex, newValue);

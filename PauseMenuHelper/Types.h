@@ -48,7 +48,7 @@ union CScaleformParameterValue
 	unsigned int unsignedInt;
 	unsigned int hash;
 	const char * string;
-	float value;
+	float fvalue;
 	double dvalue;
 };
 
