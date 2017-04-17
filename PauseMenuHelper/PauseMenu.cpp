@@ -28,15 +28,16 @@ PauseMenuItem^ PauseMenu::AddItem(System::String ^ text, MenuItemType type, int 
 
 	const char * cstr = static_cast<const char*>(static_cast<void*>(Marshal::StringToHGlobalAnsi(text)));
 
-	auto * cmenuitem = CMenuFunctions::AppendItem(cmenu, cstr, (int)childMenu, (int)type, subtype, settingIndex, 0, m_addedItemCount > 0);
+	auto * cmenuitem = CMenuFunctions::AppendItem(cmenu, cstr, (int)childMenu, (int)type, subtype, settingIndex, 0, m_addedItems->Count > 0);
 
 	PauseMenuItem ^ item = gcnew PauseMenuItem();
 
 	item->Initialize(cmenu, cmenuitem);
 
-	m_addedItemCount++;
-
 	m_addedItems->Add(item);
+
+	if (cmenu->itemCount > 16 && bIsAddonMenu)
+		cmenu->scrollFlags &= 2;
 
 	return item;
 }

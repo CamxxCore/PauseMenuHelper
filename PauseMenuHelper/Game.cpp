@@ -3,9 +3,9 @@
 #include <map>
 
 #ifdef _DEBUG
-#define DEBUGLOG(str) OutputDebugStringA(str);
+#define DEBUGLOG(x) OutputDebugStringA(x);
 #else
-#define DEBUGLOG(str)
+#define DEBUGLOG(x)
 #endif
 
 GetHashKey_t g_getHashKey;
@@ -38,7 +38,6 @@ struct CustomMenuPref
 	CMenuPreferenceCallback m_callback;
 };
 
-
 std::map<int, CustomMenuPref> g_customPrefs;
 
 int g_origMenuCount;
@@ -51,11 +50,14 @@ void callFunctionOnMovie_Stub(void * sfMovie, const char * functionName, CScalef
 	// we need to explicity override the menu state here so the game loads
 	// a valid layout for custom sub menus.
 	// This is necessary or the game won't set any layout at all.
-	int idx = menuState - 148;
-
-	if (idx > 0 && idx < g_customPrefs.size())
+	for (auto it = g_customPrefs.begin(); it != g_customPrefs.end(); it++)
 	{
-		arg->m_value.dvalue = 1136.0;
+		if (it->second.m_menuId == menuState)
+		{
+			arg->m_value.dvalue = 1138.0;
+
+			break;
+		}
 	}
 
 	return g_callInteractionResponseFn->fn(sfMovie, functionName, arg, arg1, arg2, arg3);

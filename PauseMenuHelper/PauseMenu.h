@@ -37,7 +37,7 @@ public:
 		if (index < 0 || index >= cmenu->itemCount)
 			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
 
-			int origCount = cmenu->itemCount - m_addedItemCount;
+			int origCount = cmenu->itemCount - m_addedItems->Count;
 
 			if (index >= origCount)
 			{
@@ -93,7 +93,6 @@ private:
 	List<PauseMenuItem^> ^ m_addedItems;
 	bool bIsAddonMenu = false;
 	int m_menuId = 0;
-	int m_addedItemCount = 0;
 };
 
 public enum class MenuType : int

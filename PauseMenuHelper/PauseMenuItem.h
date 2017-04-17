@@ -75,6 +75,8 @@ public:
 			m_managedCallback -= p;
 		}
 	}
+internal:
+	PauseMenuItem();
 
 	void valueChanged(CPauseMenuInstance * parent, int itemIndex, int newValue) {
 		if (m_managedCallback != nullptr)
@@ -82,9 +84,6 @@ public:
 			m_managedCallback(parent->menuId, itemIndex, newValue);
 		}
 	}
-
-internal:
-	PauseMenuItem();
 
 	inline CPauseMenuItem * baseRef()
 	{

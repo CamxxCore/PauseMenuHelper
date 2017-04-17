@@ -98,8 +98,8 @@ struct CPauseMenuInstance
 	char pad2[0x8]; //0x38-0x40
 	int menuId; //0x40-0x44
 	int unk1; //0x44-0x48
-	short unkFlag;
-	short unkShort1;
+	short unkFlag; //0x48-0x4A
+	short scrollFlags; //0x4A-0x4C
 	char pad[0x4];
 
 	CPauseMenuInstance() {
@@ -107,6 +107,6 @@ struct CPauseMenuInstance
 		menuId = 0;
 		unk1 = 2;
 		unkFlag = 128;
-		unkShort1 = 50;
+		scrollFlags = 50;
 	}
 }; //sizeof=0x50
