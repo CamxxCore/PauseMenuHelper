@@ -61,7 +61,7 @@ struct CScaleformParameter
 	char pad0[0xF];
 }; //sizeof=0x20
 
-struct CPauseMenuItem
+struct uiWidget
 {
 	int menuIndex; // 0x0-0x4
 	unsigned int textHash; //0x4-0x8
@@ -75,8 +75,8 @@ struct CPauseMenuItem
 	char stateFlags; //0x1B-0x1C // 1 = disabled
 	char pad1[0x4];
 
-	CPauseMenuItem() {
-		memset(this, 0x0, sizeof(CPauseMenuItem));
+	uiWidget() {
+		memset(this, 0x0, sizeof(uiWidget));
 		menuIndex = 0;
 		textHash = -1;
 		settingId = 0;
@@ -85,10 +85,10 @@ struct CPauseMenuItem
 	}
 }; //sizeof=0x20
 
-struct CPauseMenuInstance
+struct UIMenu
 {
 	void * cmenu; //0x0-0x8
-	CPauseMenuItem * items; //0x8-0x10
+	uiWidget * items; //0x8-0x10
 	short itemCount; //0x10-0x12
 	short maxItems; //0x12-0x14
 	char pad0[0x4]; //0x14-0x18
@@ -102,8 +102,8 @@ struct CPauseMenuInstance
 	short scrollFlags; //0x4A-0x4C
 	char pad[0x4];
 
-	CPauseMenuInstance() {
-		memset(this, 0x0, sizeof(CPauseMenuInstance));
+	UIMenu() {
+		memset(this, 0x0, sizeof(UIMenu));
 		menuId = 0;
 		unk1 = 2;
 		unkFlag = 128;

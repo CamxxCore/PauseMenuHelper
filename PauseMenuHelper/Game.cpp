@@ -2,10 +2,12 @@
 #include <mutex>
 #include <map>
 
+#include "pattern.h"
+
 #ifdef _DEBUG
-#define DEBUGLOG(x) OutputDebugStringA(x);
+#define LOG(x) OutputDebugStringA(x);
 #else
-#define DEBUGLOG(x)
+#define LOG(x)
 #endif
 
 GetHashKey_t g_getHashKey;
@@ -14,56 +16,43 @@ std::map<unsigned int, std::string> g_textEntries;
 
 static std::mutex g_textMutex;
 
-CallHook<GetGlobalTextEntry_t> * g_getGxtEntryFn;
+CallHook<GetGlobalTextEntry_t> * g_getGxtEntry;
 
-CallHook<SetMenuSlot_t> * g_createSliderItemFn;
+CallHook<SetMenuSlot_t> * g_createSliderItem;
 
-CallHook<SetMenuSlot_t> * g_createToggleItemFn;
+CallHook<SetMenuSlot_t> * g_createToggleItem;
 
-CallHook<SetPauseMenuPreference_t> * g_setPauseMenuPreferenceFn;
+CallHook<SetPauseMenuPreference_t> * g_setPauseMenuPreference;
 
-CallHook<CallFunctionOnMovie> * g_callInteractionResponseFn;
+CallHook<CallFunctionOnMovie_t> * g_callInteractionResponse;
 
-rage::pgCollection<CPauseMenuInstance> * g_activeMenuArray;
+rage::pgCollection<UIMenu> * g_activeMenuArray;
 
-uintptr_t g_globalTextManager = 0;
-
-int g_nativeMenuPrefCount = 0;
-
-struct CustomMenuPref
-{
-	int m_menuId;
-	int m_itemIndex;
-	int m_value;
-	CMenuPreferenceCallback m_callback;
-};
-
-std::map<int, CustomMenuPref> g_customPrefs;
+MemAddr g_globalTextManager;
 
 int g_origMenuCount;
 
 bool bIgnoreNextMenuEvent = false;
 
-void callFunctionOnMovie_Stub(void * sfMovie, const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3)
+struct CustomMenuPref
 {
-	int menuState = static_cast<int>(arg->m_value.dvalue) - 1000;
-	// we need to explicity override the menu state here so the game loads
-	// a valid layout for custom sub menus.
-	// This is necessary or the game won't set any layout at all.
-	for (auto it = g_customPrefs.begin(); it != g_customPrefs.end(); it++)
+	CustomMenuPref()
 	{
-		if (it->second.m_menuId == menuState)
-		{
-			arg->m_value.dvalue = 1138.0;
-
-			break;
-		}
+		memset(this, 0x0, sizeof(CustomMenuPref));
 	}
 
-	return g_callInteractionResponseFn->fn(sfMovie, functionName, arg, arg1, arg2, arg3);
-}
+	int m_menuId;
+	int m_itemIndex;
+	int m_value;
 
-const char * getGxtEntry_Stub(void * gtxArray, unsigned int hashName)
+	CMenuPreferenceCallback m_callback;
+};
+
+std::map<int, CustomMenuPref> g_customPrefs;
+
+#pragma region Trampoline Funcs
+
+const char * getGxtEntry_Hook(void * gtxArray, unsigned int hashName)
 {
 	std::unique_lock<std::mutex> lock(g_textMutex);
 
@@ -74,10 +63,48 @@ const char * getGxtEntry_Stub(void * gtxArray, unsigned int hashName)
 		return it->second.c_str();
 	}
 
-	return g_getGxtEntryFn->fn(gtxArray, hashName);
+	return g_getGxtEntry->fn(gtxArray, hashName);
 }
 
-bool SetMenuSlot_Stub(int columnId, int slotIndex, int menuState, int settingIndex, int unk, int value, const char * text, bool bPopScaleform, bool bSlotUpdate)
+void SetPauseMenuPreference_Hook(long long settingIndex, int value, unsigned int unk)
+{
+	if (settingIndex >= 175)
+	{
+		LOG("SetPauseMenuPreference_Hook(): Found a custom pref.. doing lookup.");
+
+		auto it = g_customPrefs.find(static_cast<int>(settingIndex));
+
+		if (it != g_customPrefs.end())
+		{
+			LOG("SetPauseMenuPreference_Hook(): Found custom pref instance.");
+
+			it->second.m_value = value;
+
+			if (!bIgnoreNextMenuEvent)
+			{
+				if (it->second.m_callback)
+				{
+					LOG("SetPauseMenuPreference_Hook(): Found callback..");
+
+					auto cmenu = lookupMenuForIndex(it->second.m_menuId);
+
+					if (cmenu)
+					{
+						LOG("SetPauseMenuPreference_Hook(): Invoking callback..");
+
+						it->second.m_callback(cmenu, it->second.m_itemIndex, value);
+					}
+				}
+			}
+
+			else bIgnoreNextMenuEvent = false;
+		}
+	}
+
+	return g_setPauseMenuPreference->fn(settingIndex, value, unk);
+}
+
+bool SetMenuSlot_Hook(int columnId, int slotIndex, int menuState, int settingIndex, int unk, int value, const char * text, bool bPopScaleform, bool bSlotUpdate)
 {
 	if (settingIndex >= 175) // custom?
 	{
@@ -89,100 +116,32 @@ bool SetMenuSlot_Stub(int columnId, int slotIndex, int menuState, int settingInd
 		}
 	}
 
-	return g_createToggleItemFn->fn(columnId, slotIndex, menuState, settingIndex, unk, value, text, bPopScaleform, bSlotUpdate);
+	return g_createToggleItem->fn(columnId, slotIndex, menuState, settingIndex, unk, value, text, bPopScaleform, bSlotUpdate);
 }
 
-void SetPauseMenuPreference_Stub(long long settingIndex, int value, unsigned int unk)
+void callFunctionOnMovie_Hook(void * sfMovie, const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3)
 {
-	if (settingIndex >= 175)
+	auto menuState = static_cast<int>(arg->m_value.dvalue) - 1000;
+
+	// we need to explicity override the menu state here so the game loads
+	// a valid layout for custom sub menus.
+	// This is necessary or the game won't set any layout at all.
+
+	for (auto it = g_customPrefs.begin(); it != g_customPrefs.end(); ++it)
 	{
-		DEBUGLOG("SetPauseMenuPreference_Stub(): Found a custom pref.. doing lookup.");
-
-		auto it = g_customPrefs.find((int)settingIndex);
-
-		if (it != g_customPrefs.end())
+		if (it->second.m_menuId == menuState)
 		{
-			DEBUGLOG("SetPauseMenuPreference_Stub(): Found custom pref instance.");
-
-			it->second.m_value = value;
-
-			if (!bIgnoreNextMenuEvent)
-			{
-				if (it->second.m_callback)
-				{
-					DEBUGLOG("SetPauseMenuPreference_Stub(): Found callback..");
-
-					auto cmenu = lookupMenuForIndex(it->second.m_menuId);
-
-					if (cmenu)
-					{
-						DEBUGLOG("SetPauseMenuPreference_Stub(): Invoking callback..");
-
-						it->second.m_callback(cmenu, it->second.m_itemIndex, value);
-					}
-				}
-			}
-
-			else bIgnoreNextMenuEvent = false;
+			arg->m_value.dvalue = 1138.0;
+			break;
 		}
 	}
 
-	return g_setPauseMenuPreferenceFn->fn(settingIndex, value, unk);
+	return g_callInteractionResponse->fn(sfMovie, functionName, arg, arg1, arg2, arg3);
 }
 
-int getMenuPreference(int settingIndex)
-{
-	if (settingIndex >= 175)
-	{
-		auto it = g_customPrefs.find((int)settingIndex);
+#pragma endregion
 
-		if (it != g_customPrefs.end())
-		{
-			return it->second.m_value;
-		}
-	}
-
-	return -1;
-}
-
-void setMenuPreference(int settingIndex, int value, bool ignoreCallback)
-{
-	DEBUGLOG("setMenuPreference(): setting menu pref..");
-
-	bIgnoreNextMenuEvent = ignoreCallback;
-
-	SetPauseMenuPreference_Stub(settingIndex, value, 3u);
-}
-
-unsigned int getHashKey(const char * text)
-{
-	return g_getHashKey(text, 0);
-}
-
-const char * getGxtEntry(unsigned int key)
-{
-	auto it = g_textEntries.find(key);
-
-	if (it != g_textEntries.end())
-	{
-		return it->second.c_str();
-	}
-
-	return getGxtEntry_Stub((void*)g_globalTextManager, key);
-}
-
-unsigned int setGxtEntry(const char * key, const char * text)
-{
-	auto hashKey = getHashKey(key);
-
-	std::unique_lock<std::mutex> lock(g_textMutex);
-
-	g_textEntries[hashKey] = text;
-
-	return hashKey;
-}
-
-CPauseMenuInstance * lookupMenuForIndex(int menuIndex)
+UIMenu * lookupMenuForIndex(int menuIndex)
 {
 	for (auto it = g_activeMenuArray->begin(); it != g_activeMenuArray->end(); it++)
 	{
@@ -190,60 +149,28 @@ CPauseMenuInstance * lookupMenuForIndex(int menuIndex)
 			return it;
 	}
 
-	return NULL;
+	return nullptr;
 }
 
-int getFreeMenuIndex()
+UIMenu * addMenuInstance(int menuId)
 {
-	int menuId = 148;
-
-	for (auto it = g_activeMenuArray->begin(); it != g_activeMenuArray->end(); it++)
-	{
-		if (it && it->menuId > menuId)
-			menuId = it->menuId;
-	}
-
-	menuId++;
-
-	return menuId;
-}
-
-int getFreeSettingIndex()
-{
-	int settingIndex = 175;
-
-	while (getMenuPreference(settingIndex) != -1)
-	{
-		settingIndex++;
-
-		if (settingIndex > 255)
-			return 0;
-	}
-
-	return settingIndex;
-}
-
-CPauseMenuInstance * addMenuInstance(int menuId)
-{
-	CPauseMenuInstance menu;
+	UIMenu menu;
 
 	menu.menuId = menuId;
 
-	int const newItemCount = g_activeMenuArray->m_count + 1;
+	auto const newItemCount = g_activeMenuArray->m_count + 1;
 
-	int const newSize = newItemCount * g_activeMenuArray->m_size;
+	auto const newSize = newItemCount * g_activeMenuArray->m_size;
 
-	CPauseMenuInstance * newMenuArray = (CPauseMenuInstance*)malloc(newSize);
-
-	CPauseMenuInstance * pOriginalItems = g_activeMenuArray->m_data;
+	UIMenu* newMenuArray = static_cast<UIMenu*>(malloc(newSize));
 
 	memset(newMenuArray, 0x0, newSize);
 
 	memcpy_s(
-		newMenuArray, 
-		newSize, 
-		g_activeMenuArray->m_data, 
-		g_activeMenuArray->m_count * sizeof(CPauseMenuInstance));
+		newMenuArray,
+		newSize,
+		g_activeMenuArray->m_data,
+		g_activeMenuArray->m_count * sizeof(UIMenu));
 
 	newMenuArray[newItemCount - 1] = menu;
 
@@ -256,13 +183,13 @@ CPauseMenuInstance * addMenuInstance(int menuId)
 	return &newMenuArray[newItemCount - 1];
 }
 
-void removeMenuInstance(CPauseMenuInstance * menu)
+void removeMenuInstance(UIMenu * menu)
 {
-	int const newItemCount = g_activeMenuArray->m_count - 1;
+	auto const newItemCount = g_activeMenuArray->m_count - 1;
 
-	int const newSize = newItemCount * g_activeMenuArray->m_size;
+	auto const newSize = newItemCount * g_activeMenuArray->m_size;
 
-	bool bSearchError = true;
+	auto bSearchError = true;
 
 	for (auto it = g_activeMenuArray->begin(); it != g_activeMenuArray->end(); it++)
 	{
@@ -278,9 +205,9 @@ void removeMenuInstance(CPauseMenuInstance * menu)
 
 	if (bSearchError) return;
 
-	CPauseMenuInstance * newMenuArray = (CPauseMenuInstance*)malloc(newSize);
+	auto newMenuArray = static_cast<UIMenu*>(malloc(newSize));
 
-	CPauseMenuInstance * pOriginalItems = g_activeMenuArray->m_data;
+	auto pOriginalItems = g_activeMenuArray->m_data;
 
 	memset(newMenuArray, 0x0, newSize);
 
@@ -296,16 +223,71 @@ void removeMenuInstance(CPauseMenuInstance * menu)
 	g_activeMenuArray->m_size = newItemCount;
 }
 
-void registerMenuPref(int prefId, int menuId, int itemIndex, CMenuPreferenceCallback callback)
+int getFreeMenuIndex()
+{
+	auto menuId = 148;
+
+	for (auto it = g_activeMenuArray->begin(); it != g_activeMenuArray->end(); it++)
+	{
+		if (it && it->menuId > menuId)
+			menuId = it->menuId;
+	}
+
+	menuId++;
+
+	return menuId;
+}
+
+int getFreeSettingIndex()
+{
+	auto settingIndex = 175;
+
+	while (getMenuPref(settingIndex) != -1)
+	{
+		settingIndex++;
+
+		if (settingIndex > 255)
+			return 0;
+	}
+
+	return settingIndex;
+}
+
+int getMenuPref(int settingIndex)
+{
+	if (settingIndex >= 175)
+	{
+		auto it = g_customPrefs.find(static_cast<int>(settingIndex));
+
+		if (it != g_customPrefs.end())
+		{
+			return it->second.m_value;
+		}
+	}
+
+	return -1;
+}
+
+void setMenuPref(int settingIndex, int value, bool ignoreCallback)
+{
+	LOG("setMenuPref(): setting menu pref..");
+
+	bIgnoreNextMenuEvent = ignoreCallback;
+
+	SetPauseMenuPreference_Hook(settingIndex, value, 3u);
+}
+
+void registerMenuPref(int prefId, int menuId, int itemIndex, CMenuPreferenceCallback cb)
 {
 	auto it = g_customPrefs.find(prefId);
 
 	if (it == g_customPrefs.end())
 	{
 		CustomMenuPref p;
+
 		p.m_menuId = menuId;
 		p.m_itemIndex = itemIndex;
-		p.m_callback = callback;
+		p.m_callback = cb;
 		p.m_value = 0;
 
 		g_customPrefs.insert(std::make_pair(prefId, p));
@@ -322,18 +304,46 @@ void unregisterMenuPref(int prefId)
 	}
 }
 
+unsigned int getHashKey(const char * text)
+{
+	return g_getHashKey(text, 0);
+}
+
+const char * getGxtEntry(unsigned int key)
+{
+	auto it = g_textEntries.find(key);
+
+	if (it != g_textEntries.end())
+	{
+		return it->second.c_str();
+	}
+
+	return getGxtEntry_Hook(g_globalTextManager, key);
+}
+
+unsigned int setGxtEntry(const char * key, const char * text)
+{
+	auto hashKey = getHashKey(key);
+
+	std::unique_lock<std::mutex> lock(g_textMutex);
+
+	g_textEntries[hashKey] = text;
+
+	return hashKey;
+}
+
 void initializeGame()
 {
 	auto result = BytePattern((BYTE*)"\x3B\xC7\x74\x18", "xxxx").get(-0x5);
 
 	if (result)
 	{
-		g_getHashKey = (GetHashKey_t)(*reinterpret_cast<int *>(result - 4) + result);
+		g_getHashKey = reinterpret_cast<GetHashKey_t>(*reinterpret_cast<int *>(result - 4) + result);
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find g_getHashKey");
+		LOG("initializeGame(): Failed to find g_getHashKey");
 		return;
 	}
 		
@@ -341,12 +351,12 @@ void initializeGame()
 
 	if (result)
 	{
-		g_getGxtEntryFn = HookManager::SetCall<GetGlobalTextEntry_t>(result, getGxtEntry_Stub);
+		g_getGxtEntry = HookManager::SetCall<GetGlobalTextEntry_t>(result, getGxtEntry_Hook);
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find g_getGxtEntryFn");
+		LOG("initializeGame(): Failed to find g_getGxtEntryFn");
 		return;
 	}
 
@@ -354,14 +364,15 @@ void initializeGame()
 
 	if (result)
 	{
-		g_activeMenuArray = (rage::pgCollection<CPauseMenuInstance>*)(*reinterpret_cast<int *>(result - 4) + result);
+		g_activeMenuArray = reinterpret_cast<rage::pgCollection<UIMenu>*>(
+			*reinterpret_cast<int *>(result - 4) + result);
 
 		g_origMenuCount = g_activeMenuArray->m_count;
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find g_activeMenuArray");
+		LOG("initializeGame(): Failed to find g_activeMenuArray");
 		return;
 	}
 
@@ -371,12 +382,12 @@ void initializeGame()
 	
 	if (result)
 	{
-		g_createSliderItemFn = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Stub); //-0x1A
+		g_createSliderItem = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Hook); //-0x1A
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find SetMenuSlot #1");
+		LOG("initializeGame(): Failed to find SetMenuSlot #1");
 		return;
 	}
 
@@ -384,12 +395,12 @@ void initializeGame()
 
 	if (result)
 	{
-		g_createToggleItemFn = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Stub); // +0xA8
+		g_createToggleItem = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Hook); // +0xA8
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find SetMenuSlot #2");
+		LOG("initializeGame(): Failed to find SetMenuSlot #2");
 		return;
 	}
 	
@@ -397,12 +408,12 @@ void initializeGame()
 
 	if (result)
 	{
-		g_globalTextManager = (uintptr_t) *reinterpret_cast<int*>(result - 4) + result;
+		g_globalTextManager = static_cast<uintptr_t>(*reinterpret_cast<int*>(result - 4)) + result;
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find g_globalTextManager #2");
+		LOG("initializeGame(): Failed to find g_globalTextManager #2");
 		return;
 	}
 
@@ -412,12 +423,12 @@ void initializeGame()
 
 	if (result)
 	{
-		g_setPauseMenuPreferenceFn = HookManager::SetCall<SetPauseMenuPreference_t>(result, SetPauseMenuPreference_Stub);
+		g_setPauseMenuPreference = HookManager::SetCall<SetPauseMenuPreference_t>(result, SetPauseMenuPreference_Hook);
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find g_setPauseMenuPreferenceFn");
+		LOG("initializeGame(): Failed to find g_setPauseMenuPreferenceFn");
 		return;
 	}
 
@@ -426,12 +437,12 @@ void initializeGame()
 	if (result)
 	{
 		// always toggle preferences
-		memset((void*)result, 0x90, 6);
+		memset(reinterpret_cast<void*>(result), 0x90, 6);
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find toggle prefs patch");
+		LOG("initializeGame(): Failed to find toggle prefs patch");
 		return;
 	}
 
@@ -441,45 +452,44 @@ void initializeGame()
 
 	if (result)
 	{
-		g_callInteractionResponseFn = HookManager::SetCall<CallFunctionOnMovie>(result, callFunctionOnMovie_Stub);
+		g_callInteractionResponse = HookManager::SetCall<CallFunctionOnMovie_t>(result, callFunctionOnMovie_Hook);
 	}
 
 	else
 	{
-		DEBUGLOG("initializeGame(): Failed to find g_callInteractionResponseFn");
-		return;
+		LOG("initializeGame(): Failed to find g_callInteractionResponseFn");
 	}
 }
 
 void unload()
 {
-	if (g_callInteractionResponseFn)
+	if (g_callInteractionResponse)
 	{
-		delete g_callInteractionResponseFn;
-		g_callInteractionResponseFn = nullptr;
+		delete g_callInteractionResponse;
+		g_callInteractionResponse = nullptr;
 	}
 
-	if (g_getGxtEntryFn)
+	if (g_getGxtEntry)
 	{
-		delete g_getGxtEntryFn;
-		g_getGxtEntryFn = nullptr;
+		delete g_getGxtEntry;
+		g_getGxtEntry = nullptr;
 	}
 
-	if (g_setPauseMenuPreferenceFn)
+	if (g_setPauseMenuPreference)
 	{
-		delete g_setPauseMenuPreferenceFn;
-		g_setPauseMenuPreferenceFn = nullptr;
+		delete g_setPauseMenuPreference;
+		g_setPauseMenuPreference = nullptr;
 	}
 
-	if (g_createSliderItemFn)
+	if (g_createSliderItem)
 	{
-		delete g_createSliderItemFn;
-		g_createSliderItemFn = nullptr;
+		delete g_createSliderItem;
+		g_createSliderItem = nullptr;
 	}
 
-	if (g_createToggleItemFn)
+	if (g_createToggleItem)
 	{
-		delete g_createToggleItemFn;
-		g_createToggleItemFn = nullptr;
+		delete g_createToggleItem;
+		g_createToggleItem = nullptr;
 	}
 }

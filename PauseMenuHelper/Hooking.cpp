@@ -27,25 +27,19 @@ const uint64_t MEMORY_BLOCK_SIZE = 0x1000;
 // Max range for seeking a memory block. (= 1024MB)
 const uint64_t MAX_MEMORY_RANGE = 0x40000000;
 
-void * HookManager::AllocateFunctionStub(void *origin, void *function, int type)
+PVOID HookManager::AllocateFunctionStub(PVOID origin, PVOID function, int type)
 {
 	static void* g_currentStub = nullptr;
 
 	if (!g_currentStub) {
-		ULONG_PTR minAddr;
-		ULONG_PTR maxAddr;
-
 		SYSTEM_INFO si;
 		GetSystemInfo(&si);
-		minAddr = (ULONG_PTR)si.lpMinimumApplicationAddress;
-		maxAddr = (ULONG_PTR)si.lpMaximumApplicationAddress;
+
+		ULONG_PTR minAddr = (ULONG_PTR)si.lpMinimumApplicationAddress;
 
 		if ((ULONG_PTR)origin > MAX_MEMORY_RANGE &&
 			minAddr < (ULONG_PTR)origin - MAX_MEMORY_RANGE)
 			minAddr = (ULONG_PTR)origin - MAX_MEMORY_RANGE;
-
-		if (maxAddr >(ULONG_PTR)origin + MAX_MEMORY_RANGE)
-			maxAddr = (ULONG_PTR)origin + MAX_MEMORY_RANGE;
 
 		LPVOID pAlloc = origin;
 

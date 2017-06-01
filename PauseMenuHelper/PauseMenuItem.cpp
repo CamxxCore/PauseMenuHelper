@@ -1,16 +1,12 @@
 #include "stdafx.h"
 
-PauseMenuItem::PauseMenuItem()
-{ }
-
-void PauseMenuItem::Initialize(CPauseMenuInstance * parent, CPauseMenuItem * item)
+void PauseMenuItem::Initialize(UIMenu * parent, uiWidget * item)
 {
 	m_parentId = parent->menuId;
 
 	m_index = CMenuFunctions::GetItemIndex(parent, item);
 
-	if (item->settingId > 0)
-	{
+	if (item->settingId > 0) {
 		m_nativeCallback = gcnew NativeMenuValueChangedEvent(this, &PauseMenuItem::valueChanged);
 
 		registerMenuPref(item->settingId, parent->menuId, m_index, CMenuPreferenceCallback(
@@ -25,5 +21,9 @@ PauseMenuItem::~PauseMenuItem()
 
 PauseMenuItem::!PauseMenuItem()
 {
-	unregisterMenuPref(baseRef()->settingId);
+	auto cmenuitem = getBaseRef();
+
+	if (cmenuitem) {
+		unregisterMenuPref(cmenuitem->settingId);
+	}
 }

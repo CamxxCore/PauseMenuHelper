@@ -156,6 +156,7 @@
     <ClInclude Include="Game.h" />
     <ClInclude Include="Hooking.h" />
     <ClInclude Include="Logger.h" />
+    <ClInclude Include="MemAddr.h" />
     <ClInclude Include="MenuFunctions.h" />
     <ClInclude Include="NativeStructs.h" />
     <ClInclude Include="PauseMenu.h" />
@@ -195,6 +196,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="MemAddr.cpp" />
     <ClCompile Include="MenuFunctions.cpp" />
     <ClCompile Include="PauseMenu.cpp" />
     <ClCompile Include="PauseMenuItem.cpp" />

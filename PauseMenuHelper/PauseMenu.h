@@ -12,19 +12,19 @@ public ref class PauseMenu
 public:
 	property MenuType MenuID {
 		MenuType get() {
-			return (MenuType)getMenuRef()->menuId;
+			return (MenuType)getMenuReference()->menuId;
 		}
 	}
 
 	property int ItemCount {
 		int get() {
-			return getMenuRef()->itemCount;
+			return getMenuReference()->itemCount;
 		}
 	}
 
 	property System::IntPtr MemoryAddress {
 		System::IntPtr get() {
-			auto pMenu = getMenuRef();
+			auto pMenu = getMenuReference();
 			return System::IntPtr(pMenu);
 		}
 	}
@@ -32,7 +32,7 @@ public:
 	property PauseMenuItem ^ default[int]
 	{
 		PauseMenuItem ^ get(int index) {
-		CPauseMenuInstance* cmenu = getMenuRef();
+		UIMenu* cmenu = getMenuReference();
 
 		if (index < 0 || index >= cmenu->itemCount)
 			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
@@ -55,10 +55,10 @@ public:
 	}
 
 	void set(int index, PauseMenuItem ^ value) {
-		CPauseMenuInstance*  cmenu = getMenuRef();
+		UIMenu*  cmenu = getMenuReference();
 		if (index < 0 || index >= cmenu->itemCount)
 			throw gcnew System::ArgumentOutOfRangeException("index: out of range.");
-		cmenu->items[index] = *value->baseRef();
+		cmenu->items[index] = *value->getBaseRef();
 	}
 	}
 	
@@ -69,19 +69,30 @@ public:
 	PauseMenuItem ^ AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType childMenu, int settingIndex);
 	PauseMenuItem ^ AddItem(System::String ^ text, MenuSettingType settingType);
 	PauseMenuItem ^ AddItem(System::String ^ text, MenuSettingType settingType, int initialValue);
+	PauseMenuItem ^ ItemAt(int index);
 	int IndexOf(PauseMenuItem ^ item);
 	void Remove(PauseMenuItem ^ item);
-	PauseMenuItem ^ ItemAt(int index);
 	void RemoveAt(int index);
 	void Clear();
 	PauseMenu(MenuType menuType);
 	PauseMenu();
 
 internal:
+	uiWidget * AddWidgetInternal(const char * text, int menuId, int type, int actionType, int settingIndex) {
+		auto cmenu = getMenuReference();
 
-	inline CPauseMenuInstance * getMenuRef()
+		auto * widget = CMenuFunctions::AppendItem(cmenu, text, menuId,
+			type, actionType, settingIndex, 0, m_addedItems->Count > 0);
+
+		if (cmenu->itemCount > 16 && bAddonMenu)
+			cmenu->scrollFlags &= 2;
+
+		return widget;
+	}
+
+	inline UIMenu * getMenuReference()
 	{
-		CPauseMenuInstance* cmenu = lookupMenuForIndex(m_menuId);
+		auto cmenu = lookupMenuForIndex(m_menuId);
 		if (!cmenu)
 			throw gcnew System::NullReferenceException("Internal menu reference was null.");
 		return cmenu;
@@ -91,7 +102,7 @@ private:
 	~PauseMenu();
 	!PauseMenu();
 	List<PauseMenuItem^> ^ m_addedItems;
-	bool bIsAddonMenu = false;
+	bool bAddonMenu = false;
 	int m_menuId = 0;
 };
 

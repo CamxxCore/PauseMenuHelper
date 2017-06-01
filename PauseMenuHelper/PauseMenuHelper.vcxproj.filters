@@ -53,6 +53,9 @@
     <ClInclude Include="Logger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MemAddr.h">
+      <Filter>Header Files\Native</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Stdafx.cpp">
@@ -87,6 +90,9 @@
     </ClCompile>
     <ClCompile Include="AssemblyInfo.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MemAddr.cpp">
+      <Filter>Source Files\Native</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -2,8 +2,6 @@
 
 #include <windows.h>
 
-#include "pattern.h"
-
 #include "Hooking.h"
 
 #include "Types.h"
@@ -16,35 +14,33 @@ typedef void(*SetPauseMenuPreference_t)(long long settingIndex, int value, unsig
 
 typedef bool(*SetMenuSlot_t)(int columnId, int slotIndex, int menuState, int settingIndex, int unk, int value, const char * text, bool bPopScaleform, bool bIsSlotUpdate);
 
-typedef void(*CallFunctionOnMovie)(void * sfMovie, const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3);
+typedef void(*CallFunctionOnMovie_t)(void * sfMovie, const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3);
 
-typedef void(*CMenuPreferenceCallback)(CPauseMenuInstance * parent, int itemIndex, int value);
+typedef void(*CMenuPreferenceCallback)(UIMenu * parent, int itemIndex, int value);
 
-CPauseMenuInstance * lookupMenuForIndex(int menuIndex);
+UIMenu * lookupMenuForIndex(int menuIndex);
+
+UIMenu * addMenuInstance(int menuId);
+
+void removeMenuInstance(UIMenu * menu);
 
 int getFreeMenuIndex();
 
 int getFreeSettingIndex();
 
-CPauseMenuInstance * addMenuInstance(int menuId);
+int getMenuPref(int settingIndex);
 
-void removeMenuInstance(CPauseMenuInstance * menu);
+void setMenuPref(int settingIndex, int value, bool ignoreCallback = false);
 
-void callMenuMovieFunction(const char * functionName, CScaleformParameter * arg, CScaleformParameter * arg1, CScaleformParameter * arg2, CScaleformParameter * arg3);
+void registerMenuPref(int prefId, int menuId, int itemIndex, CMenuPreferenceCallback cb);
 
-void setMenuPreference(int settingIndex, int value, bool ignoreCallback = false);
-
-int getMenuPreference(int settingIndex);
+void unregisterMenuPref(int prefId);
 
 unsigned int getHashKey(const char * text);
 
 unsigned int setGxtEntry(const char * key, const char * text);
 
 const char * getGxtEntry(unsigned int key);
-
-void registerMenuPref(int prefId, int menuId, int itemIndex, CMenuPreferenceCallback callback);
-
-void unregisterMenuPref(int prefId);
 
 void initializeGame();
 

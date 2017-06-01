@@ -8,38 +8,29 @@ PauseMenu::PauseMenu()
 PauseMenu::PauseMenu(MenuType menuType)
 {
 	m_menuId = (int)menuType;
+
 	m_addedItems = gcnew System::Collections::Generic::List<PauseMenuItem^>();
 
-	if (!lookupMenuForIndex(m_menuId))
-	{
+	if (!lookupMenuForIndex(m_menuId)) {
 		addMenuInstance(m_menuId);
-		bIsAddonMenu = true;
+		bAddonMenu = true;
 	}
-}
-
-PauseMenuItem ^ PauseMenu::ItemAt(int index)
-{
-	return this[index];
 }
 
 PauseMenuItem^ PauseMenu::AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType childMenu, int settingIndex)
 {
-	auto cmenu = getMenuRef();
+	marshal_context cxt;
+	
+	auto * cmenuitem = AddWidgetInternal(cxt.marshal_as<const char*>(text), 
+		(int)childMenu, (int)type, subtype, settingIndex);
 
-	const char * cstr = static_cast<const char*>(static_cast<void*>(Marshal::StringToHGlobalAnsi(text)));
+	PauseMenuItem ^ pMenuItem = gcnew PauseMenuItem();
 
-	auto * cmenuitem = CMenuFunctions::AppendItem(cmenu, cstr, (int)childMenu, (int)type, subtype, settingIndex, 0, m_addedItems->Count > 0);
+	pMenuItem->Initialize(getMenuReference(), cmenuitem);
 
-	PauseMenuItem ^ item = gcnew PauseMenuItem();
+	m_addedItems->Add(pMenuItem);
 
-	item->Initialize(cmenu, cmenuitem);
-
-	m_addedItems->Add(item);
-
-	if (cmenu->itemCount > 16 && bIsAddonMenu)
-		cmenu->scrollFlags &= 2;
-
-	return item;
+	return pMenuItem;
 }
 
 PauseMenuItem^ PauseMenu::AddItem(System::String ^ text, MenuItemType type, int subtype, MenuType childMenu)
@@ -64,11 +55,12 @@ PauseMenuItem^ PauseMenu::AddItem(System::String ^ text)
 
 PauseMenuItem ^ PauseMenu::AddItem(System::String ^ text, MenuSettingType settingType, int initialValue)
 {
-	auto item = AddItem(text, MenuItemType::Setting, (int)settingType, MenuType::Settings_List, getFreeSettingIndex());
+	auto item = AddItem(text, MenuItemType::Setting, 
+		(int)settingType, MenuType::Settings_List, getFreeSettingIndex());
 
-	auto baseitem = item->baseRef();
+	auto baseitem = item->getBaseRef();
 
-	setMenuPreference(baseitem->settingId, initialValue, true);
+	setMenuPref(baseitem->settingId, initialValue, true);
 
 	return item;
 }
@@ -78,19 +70,23 @@ PauseMenuItem ^ PauseMenu::AddItem(System::String ^ text, MenuSettingType settin
 	return AddItem(text, settingType, 0);
 }
 
+PauseMenuItem ^ PauseMenu::ItemAt(int index)
+{
+	return this[index];
+}
+
 int PauseMenu::IndexOf(PauseMenuItem ^ item)
 {
-	return CMenuFunctions::GetItemIndex(getMenuRef(), item->baseRef());
+	return CMenuFunctions::GetItemIndex(getMenuReference(), item->getBaseRef());
 }
 
 void PauseMenu::Remove(PauseMenuItem ^ item)
 {
 	item->~PauseMenuItem();
 
-	CMenuFunctions::RemoveItem(getMenuRef(), item->baseRef());
+	CMenuFunctions::RemoveItem(getMenuReference(), item->getBaseRef());
 
-	if (m_addedItems->Contains(item))
-	{
+	if (m_addedItems->Contains(item)) {
 		m_addedItems->Remove(item);
 	}
 }
@@ -102,9 +98,9 @@ void PauseMenu::RemoveAt(int index)
 
 void PauseMenu::Clear()
 {
-	auto cmenu = getMenuRef();
+	auto cmenu = getMenuReference();
 
-	if (bIsAddonMenu)
+	if (bAddonMenu)
 	{
 		for (int i = 0; i < cmenu->itemCount; i++)
 		{
@@ -121,7 +117,9 @@ void PauseMenu::Clear()
 			item->~PauseMenuItem();
 		}
 
-		CMenuFunctions::SetSize(cmenu, cmenu->itemCount - m_addedItems->Count, m_addedItems->Count > 0);
+		CMenuFunctions::SetSize(cmenu, 
+			cmenu->itemCount - m_addedItems->Count, 
+			m_addedItems->Count > 0);
 	}
 
 	m_addedItems->Clear();
@@ -130,16 +128,13 @@ void PauseMenu::Clear()
 PauseMenu::~PauseMenu()
 {
 	Clear();
-
 	this->!PauseMenu();
 }
 
 PauseMenu::!PauseMenu()
 {
-	if (bIsAddonMenu)
-	{
-		auto cmenu = getMenuRef();
-
+	if (bAddonMenu) {
+		auto cmenu = getMenuReference();
 		removeMenuInstance(cmenu);
 	}
 }

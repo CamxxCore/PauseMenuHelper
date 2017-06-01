@@ -11,7 +11,7 @@ public:
 		bSuccess = findPattern();
 	}
 
-	inline T get(int offset = 0)
+	T get(int offset = 0)
 	{
 		return pResult + offset;
 	}
@@ -25,15 +25,15 @@ private:
 
 		GetModuleInformation(GetCurrentProcess(), GetModuleHandle(nullptr), &module, sizeof(MODULEINFO));
 
-		auto *address = reinterpret_cast<const char *>(module.lpBaseOfDll);
+		auto *address = reinterpret_cast<BYTE*>(module.lpBaseOfDll);
 
 		auto address_end = address + module.SizeOfImage;
 
 		for (;address < address_end; address++)
 		{
-			if (bCompare((BYTE*)(address), bMask, szMask))
+			if (bCompare((BYTE*)address, bMask, szMask))
 			{
-				pResult = (T)address;
+				pResult = reinterpret_cast<T>(address);
 				return true;
 			}
 		}
@@ -42,11 +42,11 @@ private:
 		return false;
 	}
 
-	inline bool bCompare(const BYTE* pData, const BYTE* bMask, const char* szMask)
+	static bool bCompare(const BYTE* pData, const BYTE* bMask, const char* szMask)
 	{
 		for (; *szMask; ++szMask, ++pData, ++bMask)
 			if (*szMask == 'x' && *pData != *bMask)
-				return 0;
+				return false;
 		return (*szMask) == NULL;
 	}
 
@@ -54,9 +54,9 @@ private:
 	T pResult;
 };
 
-class BytePattern : public Pattern<uintptr_t>
+class BytePattern : public Pattern<BYTE*>
 {
 public:
 	BytePattern(const BYTE* bMask, const char* szMask) : 
-		Pattern<uintptr_t>(bMask, szMask) {}
+		Pattern<BYTE*>(bMask, szMask) {}
 };

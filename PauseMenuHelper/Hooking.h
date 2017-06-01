@@ -1,17 +1,18 @@
 #pragma once
 
 #include <windows.h>
-
 #include <inttypes.h>
+
+#include "MemAddr.h"
 
 template <typename T>
 class Hook
 {
 public:
-	Hook(uintptr_t addr, T func) : address(addr), fn(func) { }
+	Hook(MemAddr addr, T func) : address(addr), fn(func) { }
 	virtual ~Hook();
 	virtual void remove() = 0;
-	uintptr_t address;
+	MemAddr address;
 	T fn;
 };
 
@@ -32,7 +33,8 @@ public:
 template <typename T>
 void CallHook<T>::remove()
 {
-	*reinterpret_cast<int32_t*>(address + 1) = static_cast<int32_t>((intptr_t)fn - (intptr_t)address - 5);
+	*reinterpret_cast<int32_t*>(address + 1) = 
+		static_cast<int32_t>((intptr_t)fn - (intptr_t)address - 5);
 }
 
 template <typename T>
@@ -45,22 +47,22 @@ class HookManager
 {
 public:
 	template <typename T>
-	static inline CallHook<T> *SetCall(uintptr_t address, T target)
+	static CallHook<T> * SetCall(MemAddr address, T func)
 	{
-		T orig = reinterpret_cast<T>(*reinterpret_cast<int *>(address + 1) + (address + 5));
+		T target = reinterpret_cast<T>(*reinterpret_cast<int *>(address + 1) + (address + 5));
 
-		HMODULE hModule = GetModuleHandle(NULL);
+		auto pFunc = AllocateFunctionStub(GetModuleHandle(nullptr), func, 0);
 
-		auto pFunc = AllocateFunctionStub((void*)(hModule), (void*)target, 0);
+		*reinterpret_cast<BYTE*>(address.addr) = 0xE8;
 
-		*reinterpret_cast<BYTE*>(address) = 0xE8;
+		*reinterpret_cast<int32_t*>(address + 1) =
+			static_cast<int32_t>((intptr_t)pFunc - (intptr_t)address - 5);
 
-		*reinterpret_cast<int32_t*>(address + 1) = static_cast<int32_t>((intptr_t)pFunc - (intptr_t)address - 5);
-
-		return new CallHook<T>(address, orig);
+		return new CallHook<T>(address, target);
 	}
 
-	static void *AllocateFunctionStub(void *origin, void *function, int type);
+	static PVOID AllocateFunctionStub(PVOID origin, PVOID function, int type);
 
 	static LPVOID FindPrevFreeRegion(LPVOID pAddress, LPVOID pMinAddr, DWORD dwAllocationGranularity);
 };
+

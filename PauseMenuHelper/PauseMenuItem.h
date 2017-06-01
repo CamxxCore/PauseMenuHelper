@@ -2,68 +2,68 @@
 
 public delegate void MenuValueChangedEvent(int parentId, int itemIndex, int value);
 
-public delegate void NativeMenuValueChangedEvent(CPauseMenuInstance*, int, int);
+public delegate void NativeMenuValueChangedEvent(UIMenu*, int, int);
 
 public ref class PauseMenuItem
 {
 internal:
 	NativeMenuValueChangedEvent ^ m_nativeCallback;
 	MenuValueChangedEvent ^ m_managedCallback;
-	void Initialize(CPauseMenuInstance * parent, CPauseMenuItem * item);
+	void Initialize(UIMenu * parent, uiWidget * item);
 	~PauseMenuItem();
 	!PauseMenuItem();
 
 public:
 	property int MenuID {
 		int get() {
-			return baseRef()->menuIndex;
+			return getBaseRef()->menuIndex;
 		}
 
 		void set(int value) {
-			baseRef()->menuIndex = value;
+			getBaseRef()->menuIndex = value;
 		}
 	}
 
 	property int Value {
 		int get() {
-			return getMenuPreference(baseRef()->settingId);
+			return getMenuPref(getBaseRef()->settingId);
 		}
 		void set(int value) {
-			setMenuPreference(baseRef()->settingId, value);
+			setMenuPref(getBaseRef()->settingId, value);
 		}
 	}
 
 	property int SettingID {
 		int get() {
-			return baseRef()->settingId;
+			return getBaseRef()->settingId;
 		}
 	}
 
 	property System::String ^ Text {
 		System::String ^ get() {
-			return gcnew System::String(getGxtEntry(baseRef()->textHash));
+			return gcnew System::String(getGxtEntry(getBaseRef()->textHash));
 		}
 
 		void set(System::String ^ text) {
 			const char* cstr = (const char*)(void*)System::Runtime::InteropServices::Marshal::StringToHGlobalAnsi(text);
-			baseRef()->textHash = setGxtEntry(cstr, cstr);
+			getBaseRef()->textHash = setGxtEntry(cstr, cstr);
 		}
 	}
 
 	property System::IntPtr MemoryAddress {
 		System::IntPtr get() {
-			CPauseMenuItem * pItem = baseRef();
+			uiWidget * pItem = getBaseRef();
 			return System::IntPtr(pItem);
 		}
 	}
 
 	property bool IsSelectable {
 		bool get() {
-			return (baseRef()->stateFlags & 1) == 0;
+			return (getBaseRef()->stateFlags & 1) == 0;
 		}
 
 		void set(bool value) {
-			baseRef()->stateFlags = !value;
+			getBaseRef()->stateFlags = !value;
 		}
 	}
 
@@ -76,24 +76,28 @@ public:
 		}
 	}
 internal:
-	PauseMenuItem();
-
-	void valueChanged(CPauseMenuInstance * parent, int itemIndex, int newValue) {
+	void valueChanged(UIMenu * parent, int itemIndex, int newValue) {
 		if (m_managedCallback != nullptr)
 		{
 			m_managedCallback(parent->menuId, itemIndex, newValue);
 		}
 	}
 
-	inline CPauseMenuItem * baseRef()
+	inline uiWidget * getBaseRef()
 	{
 		auto cmenu = lookupMenuForIndex(m_parentId);
-		if (!cmenu) 
-			throw gcnew System::NullReferenceException("Internal menu reference was null.");
-		auto pItem = &cmenu->items[m_index];
-		if (!pItem) 
-			throw gcnew System::NullReferenceException("Internal item reference was null.");
-		return pItem;
+
+		if (cmenu)
+		{
+			auto pItem = &cmenu->items[m_index];
+
+			if (pItem)
+			{
+				return pItem;
+			}
+		}
+
+		return NULL;
 	}
 
 private:
