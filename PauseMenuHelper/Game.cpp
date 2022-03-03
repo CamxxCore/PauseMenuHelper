@@ -391,11 +391,11 @@ void initializeGame()
 		return;
 	}
 
-	result = pattern.get(0xA8);
+	result = pattern.get(0xA9);
 
 	if (result)
 	{
-		g_createToggleItem = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Hook); // +0xA8
+		g_createToggleItem = HookManager::SetCall<SetMenuSlot_t>(result, SetMenuSlot_Hook); // +0xA9
 	}
 
 	else
